@@ -6,6 +6,8 @@
 
 Using it will make you go "WTF?" and make you question your sanity, but in a fun way!
 
+![wtf](https://github.com/user-attachments/assets/632d31fe-cccf-44b0-bd2c-e658507cdb13)
+
 ---
 
 ## 🚀 Features
