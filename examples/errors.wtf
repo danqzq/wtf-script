@@ -1,0 +1,18 @@
+// Invalid variable declarations
+uint notUnsigned = -1;
+int notInt = 3.14;
+bool b = "";
+
+// `String literal must be quoted` error
+string s = Hello World;
+
+// Undeclared variable usage
+y = 1;
+print(x);
+print(y);
+
+// Division by zero
+int z = 10 / 0;
+
+// Invalid function call
+foo();

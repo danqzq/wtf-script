@@ -1,0 +1,44 @@
+// Type declaration
+int x;
+uint y;
+float f;
+unofloat z;
+string str;
+bool b = true;
+
+// Explicit initialization
+int KELVIN = 273;
+uint distance = (17 - 5) / 2; // Math operation
+float PI = 3.14159;
+unofloat epsilon = 0.00001;
+bool isWTF = true;
+string greeting = "Hello, World!";
+
+// Custom random range for numerical types
+int(0, 100) p;
+float(0.0, 100.0) pf;
+
+// Printing
+print("---------- Default types ----------");
+print("int x:     ", x);
+print("uint y:    ", y);
+print("float f:   ", f);
+print("unofloat z:", z);
+print("string str:", str);
+print("bool b:    ", b);
+
+print("-----------------------------------");
+
+print("----- Explicit initialization -----");
+print("KELVIN:   ", KELVIN);
+print("distance: ", distance);
+print("PI:       ", PI);
+print("epsilon:  ", epsilon);
+print("isWTF:    ", isWTF);
+print("greeting: ", greeting);
+
+print("------- Custom random range -------");
+print("[0, 100] int:  ", p);
+print("[0, 100] float:", pf);
+
+print("-----------------------------------");
