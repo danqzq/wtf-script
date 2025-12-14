@@ -52,7 +52,7 @@ cd wtf-script
 Requires **Go 1.22+**:
 
 ```bash
-go build -o wtf ./main.go
+go build -o wtf ./cmd/wtf/main.go
 ```
 
 ### 3. Run an example
@@ -104,7 +104,7 @@ See [`docs/spec.md`](docs/spec.md) for the full language specification.
 
 * [x] MVP with variable declarations and print
 * [x] Arithmetic operations with operator precedence
-* [ ] Proper lexer and AST implementation
+* [ ] 🚧 Proper lexer and AST implementation *(CURRENTLY IN PROGRESS)*
 * [ ] Branching: `if`, `else` (+ random branching with `ifrand`)
 * [ ] Loops: `while`, `for` (+ random loops)
 * [ ] Functions with parameters and returns
