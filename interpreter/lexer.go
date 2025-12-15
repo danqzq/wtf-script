@@ -10,15 +10,17 @@ import (
 // Inspired by Rob Pike's "Lexical Scanning in Go"
 
 type Lexer struct {
-	name   string
-	input  string
-	start  int
-	pos    int
-	width  int
-	line   int        // 1 - indexed
-	column int        // 1 - indexed
-	tokens chan Token // channel of scanned tokens
-	state  stateFn    // the current state function
+	name        string
+	input       string
+	start       int
+	pos         int
+	width       int
+	line        int // 1 - indexed
+	column      int // 1 - indexed
+	startLine   int // start line of current token
+	startColumn int // start column of current token
+	tokens      chan Token
+	state       stateFn
 }
 
 type stateFn func(*Lexer) stateFn
@@ -27,11 +29,13 @@ const EOS = -1 // end of shi
 
 func NewLexer(name, input string) *Lexer {
 	l := &Lexer{
-		name:   name,
-		input:  input,
-		tokens: make(chan Token),
-		line:   1,
-		column: 1,
+		name:        name,
+		input:       input,
+		tokens:      make(chan Token),
+		line:        1,
+		column:      1,
+		startLine:   1,
+		startColumn: 1,
 	}
 	go l.run() // run the state machine concurrently
 	return l
@@ -54,10 +58,12 @@ func (l *Lexer) emit(t TokenType) {
 	l.tokens <- Token{
 		Type:    t,
 		Literal: l.input[l.start:l.pos],
-		Line:    l.line,
-		Column:  l.column,
+		Line:    l.startLine,
+		Column:  l.startColumn,
 	}
 	l.start = l.pos
+	l.startLine = l.line
+	l.startColumn = l.column
 }
 
 func (l *Lexer) next() rune {
@@ -105,6 +111,8 @@ func (l *Lexer) backup() {
 
 func (l *Lexer) ignore() {
 	l.start = l.pos
+	l.startLine = l.line
+	l.startColumn = l.column
 }
 
 func (l *Lexer) accept(valid string) bool {
