@@ -163,6 +163,12 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// Enforce strict typing
+		if err := i.checkTypeCompatibility(types.VarType(varTypeFromToken(node.Type)), evaluated); err != nil {
+			return nil, err
+		}
+
 		val = evaluated
 	} else {
 		// Handles: int x; (random default)
@@ -184,8 +190,10 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 	}
 
 	if v, ok := i.Variables[node.Name.Value]; ok {
-		// In a real strict language we'd check types here
-		// But let's allow implicit casting or just update
+		// Enforce strict typing
+		if err := i.checkTypeCompatibility(v.Type, val); err != nil {
+			return nil, err
+		}
 		v.Value = val
 		i.Variables[node.Name.Value] = v
 		return val, nil
@@ -207,60 +215,85 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 }
 
 func (i *Interpreter) applyOp(op string, left, right any) (any, error) {
-	// Simple type coercion logic
-	// Support: int/int, float/float, string/string (+)
-
-	switch leftVal := left.(type) {
-	case int64:
-		rightVal, ok := right.(int64)
-		// Auto-promote right to int64 if it is int (Go implementation detail)
-		if !ok {
-			if rInt, ok2 := right.(int); ok2 {
-				rightVal = int64(rInt)
-				ok = true
-			}
-		}
-
-		if ok {
-			switch op {
-			case "+":
-				return leftVal + rightVal, nil
-			case "-":
-				return leftVal - rightVal, nil
-			case "*":
-				return leftVal * rightVal, nil
-			case "/":
-				if rightVal == 0 {
-					return nil, fmt.Errorf("division by zero")
-				}
-				return leftVal / rightVal, nil
-			}
-		}
-	case float64:
-		rightVal, ok := right.(float64)
-		if ok {
-			switch op {
-			case "+":
-				return leftVal + rightVal, nil
-			case "-":
-				return leftVal - rightVal, nil
-			case "*":
-				return leftVal * rightVal, nil
-			case "/":
-				if rightVal == 0 {
-					return nil, fmt.Errorf("division by zero")
-				}
-				return leftVal / rightVal, nil
-			}
-		}
-	case string:
-		rightVal, ok := right.(string)
-		if ok && op == "+" {
-			return leftVal + rightVal, nil
-		}
+	leftVal, rightVal, err := i.coerceValues(left, right)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("type mismatch or unknown operator: %v %s %v", left, op, right)
+	switch l := leftVal.(type) {
+	case int64:
+		r := rightVal.(int64)
+		switch op {
+		case "+":
+			return l + r, nil
+		case "-":
+			return l - r, nil
+		case "*":
+			return l * r, nil
+		case "/":
+			if r == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			return l / r, nil
+		}
+
+	case float64:
+		r := rightVal.(float64)
+		switch op {
+		case "+":
+			return l + r, nil
+		case "-":
+			return l - r, nil
+		case "*":
+			return l * r, nil
+		case "/":
+			if r == 0.0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			return l / r, nil
+		}
+
+	case string:
+		if op != "+" {
+			return nil, fmt.Errorf("unknown string operator: %s", op)
+		}
+		return l + rightVal.(string), nil
+	}
+
+	return nil, fmt.Errorf("unknown operator or type: %v %s %v", left, op, right)
+}
+
+func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
+	switch l := left.(type) {
+	case int64:
+		// Left is Int: Coerce Right to Int (FCFS)
+		switch r := right.(type) {
+		case int64:
+			return l, r, nil
+		case float64:
+			return l, int64(r), nil // Coerce float to int
+		default:
+			return nil, nil, fmt.Errorf("type mismatch: cannot operate int with %T", right)
+		}
+
+	case float64:
+		// Left is Float: Coerce Right to Float (FCFS)
+		switch r := right.(type) {
+		case float64:
+			return l, r, nil
+		case int64:
+			return l, float64(r), nil // Coerce int to float
+		default:
+			return nil, nil, fmt.Errorf("type mismatch: cannot operate float with %T", right)
+		}
+
+	case string:
+		if r, ok := right.(string); ok {
+			return l, r, nil
+		}
+		return nil, nil, fmt.Errorf("type mismatch: cannot concat string with %T", right)
+	}
+	return nil, nil, fmt.Errorf("unsupported left operand type: %T", left)
 }
 
 func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
@@ -410,6 +443,28 @@ func checkRange[T int64 | float64](min, max T) error {
 	}
 	if min == max {
 		return fmt.Errorf("min is equal to max")
+	}
+	return nil
+}
+
+func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value any) error {
+	switch expectedType {
+	case types.Int:
+		if _, ok := value.(int64); !ok {
+			return fmt.Errorf("type mismatch: expected int, got %T", value)
+		}
+	case types.Float, types.UnoFloat:
+		if _, ok := value.(float64); !ok {
+			return fmt.Errorf("type mismatch: expected float, got %T", value)
+		}
+	case types.Bool:
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("type mismatch: expected bool, got %T", value)
+		}
+	case types.String:
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("type mismatch: expected string, got %T", value)
+		}
 	}
 	return nil
 }
