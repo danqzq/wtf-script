@@ -104,7 +104,7 @@ See [`docs/spec.md`](docs/spec.md) for the full language specification.
 
 * [x] MVP with variable declarations and print
 * [x] Arithmetic operations with operator precedence
-* [ ] 🚧 Proper lexer and AST implementation *(CURRENTLY IN PROGRESS)*
+* [x] Proper lexer and AST implementation
 * [ ] Branching: `if`, `else` (+ random branching with `ifrand`)
 * [ ] Loops: `while`, `for` (+ random loops)
 * [ ] Functions with parameters and returns
