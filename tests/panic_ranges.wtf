@@ -1,0 +1,19 @@
+seed(666);
+print("Testing Panic Ranges - Part 2");
+
+// Zero range: max - min = 0 -> Should trigger panic in rand.Int63n
+print("2. Zero Range");
+int(10, 10) zero_range;
+print(zero_range);
+
+print("Testing Panic Ranges - Part 3 (Floats)");
+
+// Inverted Float
+print("3. Inverted Float Range");
+float(10.0, 0.0) f_inv;
+print(f_inv);
+
+// Zero Float Range
+print("4. Zero Float Range");
+float(5.5, 5.5) f_zero;
+print(f_zero);

@@ -152,7 +152,11 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 			return nil, err
 		}
 
-		val = i.randomValueInRange(node.Type, minVal, maxVal)
+		var errVal error
+		val, errVal = i.randomValueInRange(node.Type, minVal, maxVal)
+		if errVal != nil {
+			return nil, errVal
+		}
 	} else if node.Value != nil {
 		// Handles: int x = 5;
 		evaluated, err := i.Evaluate(node.Value)
@@ -345,22 +349,35 @@ func (i *Interpreter) randomValue(t TokenType) any {
 	return nil
 }
 
-func (i *Interpreter) randomValueInRange(t TokenType, min, max any) any {
+func (i *Interpreter) randomValueInRange(t TokenType, min, max any) (any, error) {
 	switch t {
 	case TYPE_INT:
 		minVal, ok1 := toInt64(min)
 		maxVal, ok2 := toInt64(max)
-		if ok1 && ok2 {
-			return i.Rand.Int63n(maxVal-minVal) + minVal
+		if !ok1 || !ok2 {
+			return nil, fmt.Errorf("invalid types for int range")
 		}
+
+		if err := checkRange(minVal, maxVal); err != nil {
+			return nil, err
+		}
+
+		return i.Rand.Int63n(maxVal-minVal) + minVal, nil
+
 	case TYPE_FLOAT:
 		minVal, ok1 := toFloat64(min)
 		maxVal, ok2 := toFloat64(max)
-		if ok1 && ok2 {
-			return i.Rand.Float64()*(maxVal-minVal) + minVal
+		if !ok1 || !ok2 {
+			return nil, fmt.Errorf("invalid types for float range")
 		}
+
+		if err := checkRange(minVal, maxVal); err != nil {
+			return nil, err
+		}
+
+		return i.Rand.Float64()*(maxVal-minVal) + minVal, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func toInt64(v any) (int64, bool) {
@@ -385,4 +402,14 @@ func toFloat64(v any) (float64, bool) {
 		return val, true
 	}
 	return 0, false
+}
+
+func checkRange[T int64 | float64](min, max T) error {
+	if min > max {
+		return fmt.Errorf("min is greater than max")
+	}
+	if min == max {
+		return fmt.Errorf("min is equal to max")
+	}
+	return nil
 }
