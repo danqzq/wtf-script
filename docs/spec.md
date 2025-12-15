@@ -76,7 +76,33 @@ Example:
 int result = (10 + 5) * 2;
 print(result);
 ```
+### 🔄 Type Coercion & Strictness
 
+WTFScript enforces **Foundational Type Strictness** with specific coercion rules:
+
+**1. No Implicit Conversions in Assignment:**
+Variables are strictly typed. You cannot assign a `string` to an `int` or a `bool` to a `float`.
+
+**2. First Come First Served (FCFS) Arithmetic:**
+For mixed numeric types (`int` and `float`), the **left-hand operand determines the result type**.
+* `int + float` → `int` (the float is treated as an int)
+* `float + int` → `float` (the int is treated as a float)
+
+**3. Boolean Isolation:**
+Booleans cannot be added to integers or strings. Logical operations are strict.
+
+**4. String Concatenation:**
+Strings can only be concatenated with other strings. `string + int` is invalid.
+
+Example:
+
+```wtf
+float a = 10.5;
+int b = 5;
+
+print(a + b); // Result: 15.5 (float)
+print(b + a); // Result: 15 (int)
+```
 ---
 
 ## 🚫 Error Handling
