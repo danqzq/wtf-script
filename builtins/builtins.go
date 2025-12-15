@@ -2,70 +2,39 @@ package builtins
 
 import (
 	"fmt"
-	"strconv"
 	"wtf-script/types"
 )
 
 func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
-	register("print", func(args []string, i types.IInterpreter) {
+	register("print", func(args []interface{}, i types.IInterpreter) any {
 		if len(args) < 1 {
 			fmt.Println("print expects at least 1 argument")
-			return
+			return nil
 		}
 
 		for _, arg := range args {
-			valStr := resolveArgValue(arg, i)
-			fmt.Printf("%v ", valStr)
+			fmt.Printf("%v ", arg)
 		}
 
 		fmt.Println()
+		return nil
 	})
 
-	register("seed", func(args []string, i types.IInterpreter) {
+	register("seed", func(args []interface{}, i types.IInterpreter) any {
 		if len(args) != 1 {
 			fmt.Println("seed expects exactly 1 argument")
-			return
+			return nil
 		}
 
-		arg := args[0]
-		if v, ok := i.GetVariable(arg); ok {
-			if num, err := strconv.ParseInt(v.Value.(string), 10, 64); err == nil {
-				i.SetSeed(num)
-				return
-			}
-			fmt.Println("`" + arg + "` is not a valid integer variable.")
-			return
+		// Argument should be an integer
+		switch v := args[0].(type) {
+		case int:
+			i.SetSeed(int64(v))
+		case int64:
+			i.SetSeed(v)
+		default:
+			fmt.Printf("seed expects an integer, got %T\n", args[0])
 		}
-
-		if num, err := strconv.ParseInt(arg, 10, 64); err == nil {
-			i.SetSeed(num)
-			return
-		}
-
-		fmt.Println("`" + arg + "` is not a valid integer literal or variable.")
+		return nil
 	})
-}
-
-func resolveArgValue(arg string, i types.IInterpreter) string {
-	if len(arg) >= 2 && arg[0] == '"' && arg[len(arg)-1] == '"' {
-		return arg[1 : len(arg)-1]
-	}
-
-	if v, ok := i.GetVariable(arg); ok {
-		return v.ToString()
-	}
-
-	if _, err := strconv.ParseInt(arg, 10, 64); err == nil {
-		return arg
-	}
-
-	if _, err := strconv.ParseFloat(arg, 64); err == nil {
-		return arg
-	}
-
-	if _, err := strconv.ParseBool(arg); err == nil {
-		return arg
-	}
-
-	return "`" + arg + "` is not a valid variable or literal"
 }

@@ -10,14 +10,14 @@ WTFScript is a minimal, chaos-inspired scripting language where **randomization 
 
 | Type        | Description                              | Default Range / Behavior                  |
 |-------------|------------------------------------------|-------------------------------------------|
-| `int`       | 64-bit signed integer                    | Random between -1e12 and +1e12            |
-| `uint`      | 64-bit unsigned integer                  | Random between 0 and +1e12 * 2            |
-| `float`     | 64-bit float                             | Random between -1e12 and +1e12            |
-| `unofloat`  | Uniform float between 0 and 1            | Random between 0.0 and 1.0                |
-| `string`    | Random alphanumeric string               | Random 3-17 characters long, alphanumeric |
+| `int`       | 64-bit signed integer                    | Random between -1000 and 1000 (inclusive)            |
+| `uint`      | 64-bit unsigned integer                  | Random between 0 and 2000 (inclusive)            |
+| `float`     | 64-bit float                             | Random between -1000.0 and 1000.0 (inclusive)            |
+| `unofloat`  | Uniform float between 0 and 1            | Random between 0.0 and 1.0 (inclusive)                |
+| `string`    | Random alphanumeric string               | Random 10 characters long, alphanumeric |
 | `bool`      | Random true or false                     | Random true or false (50% chance)         |
 
-> Note: The default range is configurable by adjusting constant limits set in [`interpreter/constants.go`](../interpreter/constants.go).
+> Note: The default range is configurable by adjusting constant limits set in [`config/config.go`](../config/config.go).
 
 ---
 
