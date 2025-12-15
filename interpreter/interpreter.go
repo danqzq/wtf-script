@@ -273,7 +273,7 @@ func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
 		case float64:
 			return l, int64(r), nil // Coerce float to int
 		default:
-			return nil, nil, fmt.Errorf("type mismatch: cannot operate int with %T", right)
+			return nil, nil, i.typeMismatchError(left, right)
 		}
 
 	case float64:
@@ -284,16 +284,24 @@ func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
 		case int64:
 			return l, float64(r), nil // Coerce int to float
 		default:
-			return nil, nil, fmt.Errorf("type mismatch: cannot operate float with %T", right)
+			return nil, nil, i.typeMismatchError(left, right)
 		}
 
 	case string:
 		if r, ok := right.(string); ok {
 			return l, r, nil
 		}
-		return nil, nil, fmt.Errorf("type mismatch: cannot concat string with %T", right)
+		return nil, nil, i.typeMismatchError(left, right)
+
+	case bool:
+		// Bool does not support arithmetic/concatenation with other types
+		return nil, nil, i.typeMismatchError(left, right)
 	}
 	return nil, nil, fmt.Errorf("unsupported left operand type: %T", left)
+}
+
+func (i *Interpreter) typeMismatchError(left, right any) error {
+	return fmt.Errorf("type mismatch: %T and %T", left, right)
 }
 
 func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
