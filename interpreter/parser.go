@@ -215,7 +215,7 @@ func (i *Interpreter) createOrReplaceVariable(varType types.VarType, right strin
 		return
 	}
 
-	t := tokenize(right)
+	t := make([]string, 0)
 	pos := 0
 	val = i.parseExpression(t, &pos)
 
