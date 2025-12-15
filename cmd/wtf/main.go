@@ -19,6 +19,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	i := interpreter.NewInterpreter()
-	i.Run(string(content))
+	i := interpreter.NewInterpreter(nil)
+	i.Execute(string(content))
 }
