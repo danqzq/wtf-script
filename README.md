@@ -27,12 +27,13 @@ Using it will make you go "WTF?" and make you question your sanity, but in a fun
 ```
 wtf-script/
 ├── builtins/       # Built-in functions implementation
+├── cmd/            # CLI entry point
+├── config/         # Configuration system
 ├── docs/           # Language specification and roadmap
 ├── examples/       # Sample WTFScript programs
-├── interpreter/    # AST, parser, lexer, interpreter logic
+├── interpreter/    # AST, parser, lexer, interpreter logic (including test files)
 ├── types/          # Type definitions and variable system
 ├── go.mod
-├── main.go         # CLI entry point
 └── README.md
 ```
 
