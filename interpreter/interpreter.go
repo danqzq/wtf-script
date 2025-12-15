@@ -47,7 +47,7 @@ func (i *Interpreter) Run(code string) {
 	lines := strings.Split(code, "\n")
 	for _, line := range lines {
 		if strings.TrimSpace(line) != "" {
-			i.parseLine(line)
+			//i.parseLine(line)
 		}
 	}
 }
