@@ -1,0 +1,106 @@
+// --- Passing Tests (1-15) ---
+
+// 1. Basic Uint Declaration
+print("Test 1: Basic Declaration");
+uint u1 = 100;
+print(u1);
+
+// 2. Computed Underflow (Subtraction)
+print("Test 2: Computed Underflow (0 - 1)");
+uint u2 = 0 - 1;
+print(u2); // Expect MaxUint
+
+// 3. Computed Underflow (Addition of Negative)
+print("Test 3: Computed Underflow (10 + -20)");
+uint u3 = 10 + -20;
+print(u3); // Expect MaxUint - 9
+
+// 4. FCFS: Uint + Int (Positive)
+print("Test 4: Uint + Int (Pos)");
+uint u4 = 50;
+int i4 = 10;
+print(u4 + i4); // Expect 60 (Uint)
+
+// 5. FCFS: Uint + Int (Negative Result -> Underflow)
+print("Test 5: Uint + Int (Neg -> Underflow)");
+uint u5 = 10;
+int i5 = -20;
+print(u5 + i5); // Expect Underflow
+
+// 6. FCFS: Int + Uint
+print("Test 6: Int + Uint -> Int");
+int i6 = 10;
+uint u6 = 20;
+print(i6 - u6); // Expect -10 (Int)
+
+// 7. FCFS: Float + Uint
+print("Test 7: Float + Uint -> Float");
+float f7 = 10.5;
+uint u7 = 5;
+print(f7 + u7); // Expect 15.5 (Float)
+
+// 8. FCFS: Uint + Float (Truncation)
+print("Test 8: Uint + Float -> Uint");
+uint u8 = 20;
+float f8 = 2.9;
+print(u8 + f8); // Expect 22 (Uint, 2.9 truncated to 2)
+
+// 9. Complex Chained FCFS
+print("Test 9: Complex Chain (Uint + Int - Float)");
+// (100u + -50) -> 50u. 50u - 2.5 -> 48u.
+uint u9 = 100 + -50 - 2.5; 
+print(u9);
+
+// 10. Float Assignment from Uint
+print("Test 10: Float = Uint");
+float f10 = u1;
+print(f10);
+
+// 11. Int Assignment from Uint
+print("Test 11: Int = Uint");
+int i11 = u1;
+print(i11);
+
+// 12. Unary Minus on Uint
+print("Test 12: Unary Minus on Uint");
+uint u12 = 5;
+print(-u12); // Puts 0 - 5 -> Underflow
+
+// 13. Division Uint / Int
+print("Test 13: Uint / Int");
+uint u13 = 100;
+int i13 = 4;
+print(u13 / i13); // 25
+
+// 14. Large Values
+print("Test 14: Large Values");
+uint u14 = 0 - 1; // Max
+print(u14 - 1); // Max - 1
+
+// 15. Multiple Ops Stress
+print("Test 15: Stress Ops");
+uint u15 = 10;
+int i15 = 20;
+float f15 = 5.5;
+// u15 * i15 -> 200u. 200u + f15 -> 205u.
+print(u15 * i15 + f15);
+
+
+// Error 1: Negative Literal Assignment
+// uint err1 = -1;
+
+// Error 2: Negative Float Literal Assignment
+// uint err2 = -10.5;
+
+// Error 3: Strict Float Assignment (Positive)
+// uint err3 = 10.5;
+
+// Error 4: Computed Float Result Assignment
+ // uint err4 = 10.0 + 5.5;
+
+// Error 5: Negative Int Variable Assignment
+ // int neg = -50;
+ // uint err5 = neg; 
+
+// Error 5: Type Mismatch String
+ uint err5 = "hello";
