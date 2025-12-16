@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -130,14 +131,14 @@ func (l *Lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
+func (l *Lexer) errorf(formattedMsg string, args ...any) stateFn {
 	l.tokens <- Token{
 		Type:    ILLEGAL,
-		Literal: l.input[l.start:l.pos],
+		Literal: fmt.Sprintf(formattedMsg, args...),
 		Line:    l.line,
 		Column:  l.column,
 	}
-	return nil
+	return lexStart
 }
 
 func lexStart(l *Lexer) stateFn {
@@ -207,6 +208,7 @@ func lexString(l *Lexer) stateFn {
 		ch := l.next()
 		switch ch {
 		case EOS, '\n':
+			l.emit(STRING)
 			return l.errorf("unterminated string")
 		case '"':
 			l.emit(STRING)
