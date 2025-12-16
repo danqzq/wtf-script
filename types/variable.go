@@ -4,7 +4,7 @@ import "fmt"
 
 type Variable struct {
 	Type  VarType
-	Value interface{}
+	Value any
 }
 
 type VarType int
@@ -18,6 +18,25 @@ const (
 	String
 	Unknown
 )
+
+func (t VarType) String() string {
+	switch t {
+	case Int:
+		return "int"
+	case Uint:
+		return "uint"
+	case Float:
+		return "float"
+	case UnoFloat:
+		return "unofloat"
+	case Bool:
+		return "bool"
+	case String:
+		return "string"
+	default:
+		return "unknown"
+	}
+}
 
 func (v Variable) ToString() string {
 	switch v.Type {
