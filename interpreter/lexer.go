@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -22,6 +21,7 @@ type Lexer struct {
 	startColumn int // start column of current token
 	tokens      chan Token
 	state       stateFn
+	errors      []*LexicalError
 }
 
 type stateFn func(*Lexer) stateFn
@@ -37,6 +37,7 @@ func NewLexer(name, input string) *Lexer {
 		column:      1,
 		startLine:   1,
 		startColumn: 1,
+		errors:      make([]*LexicalError, 0),
 	}
 	go l.run() // run the state machine concurrently
 	return l
@@ -48,6 +49,10 @@ func (l *Lexer) run() {
 		l.state = l.state(l)
 	}
 	close(l.tokens)
+}
+
+func (l *Lexer) Errors() []*LexicalError {
+	return l.errors
 }
 
 func (l *Lexer) NextToken() Token {
@@ -132,9 +137,12 @@ func (l *Lexer) acceptRun(valid string) {
 }
 
 func (l *Lexer) errorf(formattedMsg string, args ...any) stateFn {
+	err := NewLexicalError(l.line, l.column, formattedMsg, args...)
+	l.errors = append(l.errors, err)
+
 	l.tokens <- Token{
 		Type:    ILLEGAL,
-		Literal: fmt.Sprintf(formattedMsg, args...),
+		Literal: err.Msg,
 		Line:    l.line,
 		Column:  l.column,
 	}
