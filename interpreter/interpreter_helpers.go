@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"wtf-script/types"
 )
 
@@ -42,16 +41,16 @@ func (i *Interpreter) randomValue(t TokenType) any {
 	return nil
 }
 
-func (i *Interpreter) randomValueInRange(t TokenType, min, max any) (any, error) {
+func (i *Interpreter) randomValueInRange(t TokenType, min, max any, line, col int) (any, error) {
 	switch t {
 	case TYPE_INT:
 		minVal, ok1 := toInt64(min)
 		maxVal, ok2 := toInt64(max)
 		if !ok1 || !ok2 {
-			return nil, fmt.Errorf("invalid types for int range")
+			return nil, NewRuntimeError(line, col, "invalid types for int range")
 		}
 
-		if err := checkRange(minVal, maxVal); err != nil {
+		if err := checkRange(minVal, maxVal, line, col); err != nil {
 			return nil, err
 		}
 
@@ -61,10 +60,10 @@ func (i *Interpreter) randomValueInRange(t TokenType, min, max any) (any, error)
 		minVal, ok1 := toFloat64(min)
 		maxVal, ok2 := toFloat64(max)
 		if !ok1 || !ok2 {
-			return nil, fmt.Errorf("invalid types for float range")
+			return nil, NewRuntimeError(line, col, "invalid types for float range")
 		}
 
-		if err := checkRange(minVal, maxVal); err != nil {
+		if err := checkRange(minVal, maxVal, line, col); err != nil {
 			return nil, err
 		}
 
@@ -97,33 +96,33 @@ func toFloat64(v any) (float64, bool) {
 	return 0, false
 }
 
-func checkRange[T int64 | float64](min, max T) error {
+func checkRange[T int64 | float64](min, max T, line, col int) error {
 	if min > max {
-		return fmt.Errorf("min is greater than max")
+		return NewInvalidRangeError(line, col, "min is greater than max")
 	}
 	if min == max {
-		return fmt.Errorf("min is equal to max")
+		return NewInvalidRangeError(line, col, "min is equal to max")
 	}
 	return nil
 }
 
-func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value any) error {
+func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value any, line, col int) error {
 	switch expectedType {
 	case types.Int:
 		if _, ok := value.(int64); !ok {
-			return fmt.Errorf("type mismatch: expected int, got %T", value)
+			return NewRuntimeError(line, col, "type mismatch: expected int, got %T", value)
 		}
 	case types.Float, types.UnoFloat:
 		if _, ok := value.(float64); !ok {
-			return fmt.Errorf("type mismatch: expected float, got %T", value)
+			return NewRuntimeError(line, col, "type mismatch: expected float, got %T", value)
 		}
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
-			return fmt.Errorf("type mismatch: expected bool, got %T", value)
+			return NewRuntimeError(line, col, "type mismatch: expected bool, got %T", value)
 		}
 	case types.String:
 		if _, ok := value.(string); !ok {
-			return fmt.Errorf("type mismatch: expected string, got %T", value)
+			return NewRuntimeError(line, col, "type mismatch: expected string, got %T", value)
 		}
 	}
 	return nil
