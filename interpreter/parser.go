@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -30,15 +29,9 @@ type (
 	infixParseFn  func(Expression) Expression
 )
 
-type ParsingError struct {
-	Line    int
-	Column  int
-	Message string
-}
-
 type Parser struct {
 	l      *Lexer
-	errors []*ParsingError
+	errors []*ParserError
 
 	curToken  Token
 	peekToken Token
@@ -50,7 +43,7 @@ type Parser struct {
 func NewParser(l *Lexer) *Parser {
 	p := &Parser{
 		l:      l,
-		errors: make([]*ParsingError, 0),
+		errors: make([]*ParserError, 0),
 	}
 
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
@@ -88,8 +81,7 @@ func (p *Parser) ParseProgram() *Program {
 
 	for p.curToken.Type != EOF {
 		if p.curToken.Type == ILLEGAL {
-			msg := fmt.Sprintf("Illegal token in line %d, column %d: %s", p.curToken.Line, p.curToken.Column, p.curToken.Literal)
-			p.addError(msg, p.curToken.Line)
+			p.errors = append(p.errors, NewIllegalTokenError(&p.curToken))
 		}
 		stmt := p.parseStatement()
 		if stmt != nil {
@@ -104,22 +96,13 @@ func (p *Parser) ParseProgram() *Program {
 func (p *Parser) Errors() []string {
 	var errs []string
 	for _, e := range p.errors {
-		errs = append(errs, e.Message)
+		errs = append(errs, e.Msg)
 	}
 	return errs
 }
 
-func (p *Parser) addError(msg string, line int) {
-	if len(p.errors) > 0 && p.errors[len(p.errors)-1].Line == line {
-		return
-	}
-	p.errors = append(p.errors, &ParsingError{Line: line, Message: msg})
-}
-
 func (p *Parser) peekError(t TokenType) {
-	msg := fmt.Sprintf("[Line %d, Col %d] expected next token to be %s, got %s instead",
-		p.peekToken.Line, p.peekToken.Column, t, p.peekToken.Type)
-	p.addError(msg, p.peekToken.Line)
+	p.errors = append(p.errors, NewExpectedTokenError(&p.peekToken, t))
 }
 
 func (p *Parser) registerPrefix(tokenType TokenType, fn prefixParseFn) {
@@ -193,9 +176,11 @@ func (p *Parser) parseAssignStatement() Statement {
 	stmt := &AssignStmt{Name: &Identifier{Token: p.curToken, Value: p.curToken.Literal}}
 
 	p.nextToken() // consume identifier
-	// next is '=', check it just in case, though dispatch logic already checked
+	// The `parseStatement` function dispatches to `parseAssignStatement` only when `p.peekToken.Type` is `ASSIGN`.
+	// After `p.nextToken()` is called, `p.curToken` should be `ASSIGN`.
+	// This check acts as a safeguard, as the dispatch logic in `parseStatement` should ensure `p.curToken.Type` is `ASSIGN` here.
 	if p.curToken.Type != ASSIGN {
-		return nil // Should not happen based on dispatch
+		return nil // This state indicates an internal parser error or an unexpected token sequence.
 	}
 	stmt.Token = p.curToken // The '=' token
 
@@ -251,9 +236,7 @@ func (p *Parser) parseIntegerLiteral() Expression {
 
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
 	if err != nil {
-		msg := fmt.Sprintf("[Line %d, Col %d] could not parse %q as integer",
-			p.curToken.Line, p.curToken.Column, p.curToken.Literal)
-		p.addError(msg, p.curToken.Line)
+		p.errors = append(p.errors, NewIntegerParseError(&p.curToken))
 		return nil
 	}
 
@@ -266,9 +249,7 @@ func (p *Parser) parseFloatLiteral() Expression {
 
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
 	if err != nil {
-		msg := fmt.Sprintf("[Line %d, Col %d] could not parse %q as float",
-			p.curToken.Line, p.curToken.Column, p.curToken.Literal)
-		p.addError(msg, p.curToken.Line)
+		p.errors = append(p.errors, NewFloatParseError(&p.curToken))
 		return nil
 	}
 
@@ -373,7 +354,5 @@ func (p *Parser) curPrecedence() int {
 }
 
 func (p *Parser) noPrefixParseFnError(t TokenType) {
-	msg := fmt.Sprintf("[Line %d, Col %d] no prefix parse function for %s found",
-		p.curToken.Line, p.curToken.Column, t)
-	p.addError(msg, p.curToken.Line)
+	p.errors = append(p.errors, NewNoPrefixParseFnError(&p.curToken, t))
 }
