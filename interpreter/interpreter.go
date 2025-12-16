@@ -123,7 +123,7 @@ func (i *Interpreter) evalIdentifier(node *Identifier) (any, error) {
 	if val, ok := i.Variables[node.Value]; ok {
 		return val.Value, nil
 	}
-	return nil, fmt.Errorf("identifier not found: %s", node.Value)
+	return nil, NewIdentifierNotFoundError(node)
 }
 
 func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
@@ -141,7 +141,7 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		var errVal error
-		val, errVal = i.randomValueInRange(node.Type, minVal, maxVal)
+		val, errVal = i.randomValueInRange(node.Type, minVal, maxVal, node.Token.Line, node.Token.Column)
 		if errVal != nil {
 			return nil, errVal
 		}
@@ -152,7 +152,9 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 			return nil, err
 		}
 
-		if err := i.checkTypeCompatibility(types.VarType(varTypeFromToken(node.Type)), evaluated); err != nil {
+		expectedType := types.VarType(varTypeFromToken(node.Type))
+		err = i.checkTypeCompatibility(expectedType, evaluated, node.Token.Line, node.Token.Column)
+		if err != nil {
 			return nil, err
 		}
 
@@ -176,14 +178,15 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 	}
 
 	if v, ok := i.Variables[node.Name.Value]; ok {
-		if err := i.checkTypeCompatibility(v.Type, val); err != nil {
+		err = i.checkTypeCompatibility(v.Type, val, node.Token.Line, node.Token.Column)
+		if err != nil {
 			return nil, err
 		}
 		v.Value = val
 		i.Variables[node.Name.Value] = v
 		return val, nil
 	}
-	return nil, fmt.Errorf("variable not defined: %s", node.Name.Value)
+	return nil, NewVariableNotDefinedError(node.Name)
 }
 
 func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
@@ -196,11 +199,11 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 		return nil, err
 	}
 
-	return i.applyOp(node.Operator, left, right)
+	return i.applyOp(node.Operator, left, right, node.Token.Line, node.Token.Column)
 }
 
-func (i *Interpreter) applyOp(op string, left, right any) (any, error) {
-	leftVal, rightVal, err := i.coerceValues(left, right)
+func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, error) {
+	leftVal, rightVal, err := i.coerceValues(left, right, line, col)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +220,7 @@ func (i *Interpreter) applyOp(op string, left, right any) (any, error) {
 			return l * r, nil
 		case "/":
 			if r == 0 {
-				return nil, fmt.Errorf("division by zero")
+				return nil, NewDivisionByZeroError(line, col)
 			}
 			return l / r, nil
 		}
@@ -233,22 +236,22 @@ func (i *Interpreter) applyOp(op string, left, right any) (any, error) {
 			return l * r, nil
 		case "/":
 			if r == 0.0 {
-				return nil, fmt.Errorf("division by zero")
+				return nil, NewDivisionByZeroError(line, col)
 			}
 			return l / r, nil
 		}
 
 	case string:
 		if op != "+" {
-			return nil, fmt.Errorf("unknown string operator: %s", op)
+			return nil, NewRuntimeError(line, col, "unknown string operator: %s", op)
 		}
 		return l + rightVal.(string), nil
 	}
 
-	return nil, fmt.Errorf("unknown operator or type: %v %s %v", left, op, right)
+	return nil, NewUnknownOperatorError(line, col, op, left, right)
 }
 
-func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
+func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, error) {
 	switch l := left.(type) {
 	case int64:
 		// Left is Int: Coerce Right to Int (FCFS)
@@ -258,7 +261,7 @@ func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
 		case float64:
 			return l, int64(r), nil // Coerce float to int
 		default:
-			return nil, nil, i.typeMismatchError(left, right)
+			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
 
 	case float64:
@@ -269,24 +272,24 @@ func (i *Interpreter) coerceValues(left, right any) (any, any, error) {
 		case int64:
 			return l, float64(r), nil // Coerce int to float
 		default:
-			return nil, nil, i.typeMismatchError(left, right)
+			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
 
 	case string:
 		if r, ok := right.(string); ok {
 			return l, r, nil
 		}
-		return nil, nil, i.typeMismatchError(left, right)
+		return nil, nil, i.typeMismatchError(left, right, line, col)
 
 	case bool:
 		// Bool does not support arithmetic/concatenation with other types
-		return nil, nil, i.typeMismatchError(left, right)
+		return nil, nil, i.typeMismatchError(left, right, line, col)
 	}
-	return nil, nil, fmt.Errorf("unsupported left operand type: %T", left)
+	return nil, nil, NewRuntimeError(line, col, "unsupported left operand type: %T", left)
 }
 
-func (i *Interpreter) typeMismatchError(left, right any) error {
-	return fmt.Errorf("type mismatch: %T and %T", left, right)
+func (i *Interpreter) typeMismatchError(left, right any, line, col int) error {
+	return NewTypeMismatchError(line, col, left, right)
 }
 
 func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
@@ -308,7 +311,7 @@ func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
 			return !val, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown unary operator: %s %v", node.Operator, right)
+	return nil, NewUnknownUnaryOperatorError(node, right)
 }
 
 func (i *Interpreter) evalCallExpr(node *CallExpr) (any, error) {
@@ -325,7 +328,7 @@ func (i *Interpreter) evalCallExpr(node *CallExpr) (any, error) {
 	// Function identifier
 	ident, ok := node.Function.(*Identifier)
 	if !ok {
-		return nil, fmt.Errorf("function not identifier")
+		return nil, NewInvalidFunctionCallError(node, "function expression must be an identifier")
 	}
 
 	if fn, ok := i.Builtins[ident.Value]; ok {
@@ -333,5 +336,5 @@ func (i *Interpreter) evalCallExpr(node *CallExpr) (any, error) {
 		return val, nil
 	}
 
-	return nil, fmt.Errorf("function not found: %s", ident.Value)
+	return nil, NewFunctionNotFoundError(node, ident.Value)
 }
