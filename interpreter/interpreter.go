@@ -126,6 +126,27 @@ func (i *Interpreter) evalIdentifier(node *Identifier) (any, error) {
 	return nil, NewIdentifierNotFoundError(node)
 }
 
+func isNegativeLiteral(node Node) bool {
+	switch n := node.(type) {
+	case *UnaryExpr:
+		if n.Operator == "-" {
+			switch n.Right.(type) {
+			case *IntegerLiteral:
+				return true
+			case *FloatLiteral:
+				return true
+			}
+		}
+	}
+	if lit, ok := node.(*IntegerLiteral); ok {
+		return lit.Value < 0
+	}
+	if lit, ok := node.(*FloatLiteral); ok {
+		return lit.Value < 0
+	}
+	return false
+}
+
 func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 	var val any
 
@@ -153,12 +174,31 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		expectedType := types.VarType(varTypeFromToken(node.Type))
+
+		// Special handling for Uint underflow vs strict literal check
+		if expectedType == types.Uint {
+			if val, ok := evaluated.(int64); ok && val < 0 {
+				_, isIdent := node.Value.(*Identifier)
+				if isNegativeLiteral(node.Value) || isIdent {
+					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", val)
+				}
+				// It's a computed value (e.g. 1 + -10), allow underflow
+				evaluated = uint64(val)
+			} else if val, ok := evaluated.(float64); ok && val < 0 {
+				_, isIdent := node.Value.(*Identifier)
+				if isNegativeLiteral(node.Value) || isIdent {
+					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", val)
+				}
+				evaluated = uint64(val)
+			}
+		}
+
 		err = i.checkTypeCompatibility(expectedType, evaluated, node.Token.Line, node.Token.Column)
 		if err != nil {
 			return nil, err
 		}
 
-		val = evaluated
+		val = castToType(expectedType, evaluated)
 	} else {
 		// Handles: int x; (random default)
 		val = i.randomValue(node.Type)
@@ -182,7 +222,28 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		v.Value = val
+
+		err = i.checkTypeCompatibility(v.Type, val, node.Token.Line, node.Token.Column)
+		if err != nil {
+			return nil, err
+		}
+
+		if v.Type == types.Uint {
+			if intVal, ok := val.(int64); ok && intVal < 0 {
+				_, isIdent := node.Value.(*Identifier)
+				if isNegativeLiteral(node.Value) || isIdent {
+					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", intVal)
+				}
+			}
+			if floatVal, ok := val.(float64); ok && floatVal < 0 {
+				_, isIdent := node.Value.(*Identifier)
+				if isNegativeLiteral(node.Value) || isIdent {
+					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", floatVal)
+				}
+			}
+		}
+
+		v.Value = castToType(v.Type, val)
 		i.Variables[node.Name.Value] = v
 		return val, nil
 	}
@@ -211,6 +272,22 @@ func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, e
 	switch l := leftVal.(type) {
 	case int64:
 		r := rightVal.(int64)
+		switch op {
+		case "+":
+			return l + r, nil
+		case "-":
+			return l - r, nil
+		case "*":
+			return l * r, nil
+		case "/":
+			if r == 0 {
+				return nil, NewDivisionByZeroError(line, col)
+			}
+			return l / r, nil
+		}
+
+	case uint64:
+		r := rightVal.(uint64)
 		switch op {
 		case "+":
 			return l + r, nil
@@ -258,8 +335,23 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 		switch r := right.(type) {
 		case int64:
 			return l, r, nil
+		case uint64:
+			return l, int64(r), nil
 		case float64:
-			return l, int64(r), nil // Coerce float to int
+			return l, int64(r), nil
+		default:
+			return nil, nil, i.typeMismatchError(left, right, line, col)
+		}
+
+	case uint64:
+		// Left is Uint: Coerce Right to Uint (FCFS)
+		switch r := right.(type) {
+		case uint64:
+			return l, r, nil
+		case int64:
+			return l, uint64(r), nil
+		case float64:
+			return l, uint64(r), nil
 		default:
 			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
@@ -270,7 +362,9 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 		case float64:
 			return l, r, nil
 		case int64:
-			return l, float64(r), nil // Coerce int to float
+			return l, float64(r), nil
+		case uint64:
+			return l, float64(r), nil
 		default:
 			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
@@ -303,6 +397,8 @@ func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
 		switch val := right.(type) {
 		case int64:
 			return -val, nil
+		case uint64:
+			return 0 - val, nil
 		case float64:
 			return -val, nil
 		}

@@ -109,13 +109,35 @@ func checkRange[T int64 | float64](min, max T, line, col int) error {
 func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value any, line, col int) error {
 	switch expectedType {
 	case types.Int:
-		if _, ok := value.(int64); !ok {
-			return NewRuntimeError(line, col, "type mismatch: expected int, got %T", value)
+		if _, ok := value.(int64); ok {
+			return nil
 		}
+		if _, ok := value.(uint64); ok {
+			return nil
+		}
+		if _, ok := value.(float64); ok {
+			return nil
+		}
+		return NewRuntimeError(line, col, "type mismatch: expected int, got %T", value)
+	case types.Uint:
+		if _, ok := value.(uint64); ok {
+			return nil
+		}
+		if _, ok := value.(int64); ok {
+			return nil
+		}
+		return NewRuntimeError(line, col, "type mismatch: expected uint, got %T", value)
 	case types.Float, types.UnoFloat:
-		if _, ok := value.(float64); !ok {
-			return NewRuntimeError(line, col, "type mismatch: expected float, got %T", value)
+		if _, ok := value.(float64); ok {
+			return nil
 		}
+		if _, ok := value.(int64); ok {
+			return nil
+		}
+		if _, ok := value.(uint64); ok {
+			return nil
+		}
+		return NewRuntimeError(line, col, "type mismatch: expected float, got %T", value)
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
 			return NewRuntimeError(line, col, "type mismatch: expected bool, got %T", value)
@@ -126,4 +148,31 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 		}
 	}
 	return nil
+}
+
+func castToType(expectedType types.VarType, value any) any {
+	switch expectedType {
+	case types.Uint:
+		if value, ok := value.(int64); ok {
+			return uint64(value)
+		}
+		if value, ok := value.(float64); ok {
+			return uint64(value)
+		}
+	case types.Float, types.UnoFloat:
+		if value, ok := value.(int64); ok {
+			return float64(value)
+		}
+		if value, ok := value.(uint64); ok {
+			return float64(value)
+		}
+	case types.Int:
+		if value, ok := value.(uint64); ok {
+			return int64(value)
+		}
+		if value, ok := value.(float64); ok {
+			return int64(value)
+		}
+	}
+	return value
 }
