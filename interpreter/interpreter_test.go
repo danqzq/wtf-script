@@ -10,7 +10,7 @@ func TestInterpreter_VarDeclaration(t *testing.T) {
 	i := NewInterpreter(nil)
 	i.Execute(input)
 
-	v, ok := i.GetVariable("x")
+	v, ok := i.Variables["x"]
 	if !ok {
 		t.Fatalf("variable 'x' not found")
 	}
@@ -30,7 +30,7 @@ func TestInterpreter_VarRandom(t *testing.T) {
 	i.SetSeed(42) // Deterministic see if possible, or just check range
 	i.Execute(input)
 
-	v, ok := i.GetVariable("x")
+	v, ok := i.Variables["x"]
 	if !ok {
 		t.Fatalf("variable 'x' not found")
 	}
@@ -50,7 +50,7 @@ func TestInterpreter_Arithmetic(t *testing.T) {
 	i := NewInterpreter(nil)
 	i.Execute(input)
 
-	v, ok := i.GetVariable("res")
+	v, ok := i.Variables["res"]
 	if !ok {
 		t.Fatalf("variable 'res' not found")
 	}
@@ -68,7 +68,7 @@ func TestInterpreter_Assignment(t *testing.T) {
 	i := NewInterpreter(nil)
 	i.Execute(input)
 
-	v, ok := i.GetVariable("x")
+	v, ok := i.Variables["x"]
 	if !ok {
 		t.Fatalf("variable 'x' not found")
 	}
@@ -82,7 +82,7 @@ func TestInterpreter_NegativeNumbers(t *testing.T) {
 	i := NewInterpreter(nil)
 	i.Execute(input)
 
-	v, ok := i.GetVariable("x")
+	v, ok := i.Variables["x"]
 	if !ok {
 		t.Fatalf("variable 'x' not found")
 	}
