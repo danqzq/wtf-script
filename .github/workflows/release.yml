@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  release:
+    # Only run if commit message contains "-release"
+    if: contains(github.event.head_commit.message, '-release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Get latest tag
+      id: get_tag
+      run: |
+        # Get the latest tag, or start with v1.0.0 if no tags exist
+        git fetch --tags
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+        echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "Latest tag: $LATEST_TAG"
+
+    - name: Calculate new version
+      id: calc_version
+      run: |
+        LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+        
+        # Remove 'v' prefix
+        VERSION=${LATEST_TAG#v}
+        
+        # Split version into parts
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+        
+        # Check if commit message contains "-major" for major version bump
+        if echo "${{ github.event.head_commit.message }}" | grep -q "\-major"; then
+          MAJOR=$((MAJOR + 1))
+          MINOR=0
+          echo "Version bump: MAJOR"
+        else
+          # Default: increment minor version
+          MINOR=$((MINOR + 1))
+          echo "Version bump: MINOR"
+        fi
+        
+        NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+
+    - name: Build for Windows (amd64)
+      run: |
+        GOOS=windows GOARCH=amd64 go build -o wtf-windows-amd64.exe ./cmd/wtf
+        
+    - name: Build for Windows (arm64)
+      run: |
+        GOOS=windows GOARCH=arm64 go build -o wtf-windows-arm64.exe ./cmd/wtf
+
+    - name: Build for macOS (amd64)
+      run: |
+        GOOS=darwin GOARCH=amd64 go build -o wtf-darwin-amd64 ./cmd/wtf
+        
+    - name: Build for macOS (arm64)
+      run: |
+        GOOS=darwin GOARCH=arm64 go build -o wtf-darwin-arm64 ./cmd/wtf
+
+    - name: Build for Linux (amd64)
+      run: |
+        GOOS=linux GOARCH=amd64 go build -o wtf-linux-amd64 ./cmd/wtf
+        
+    - name: Build for Linux (arm64)
+      run: |
+        GOOS=linux GOARCH=arm64 go build -o wtf-linux-arm64 ./cmd/wtf
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cat << EOF > RELEASE_NOTES.md
+        ## Release ${{ steps.calc_version.outputs.new_version }}
+        
+        ### Changes
+        
+        ${{ github.event.head_commit.message }}
+        
+        ### Binaries
+        
+        - **Windows**: wtf-windows-amd64.exe, wtf-windows-arm64.exe
+        - **macOS**: wtf-darwin-amd64 (Intel), wtf-darwin-arm64 (Apple Silicon)
+        - **Linux**: wtf-linux-amd64, wtf-linux-arm64
+        
+        ### Installation
+        
+        Download the appropriate binary for your platform and add it to your PATH.
+        
+        #### macOS/Linux
+        \`\`\`bash
+        # Example for macOS arm64 (Apple Silicon)
+        curl -LO https://github.com/${{ github.repository }}/releases/download/${{ steps.calc_version.outputs.new_version }}/wtf-darwin-arm64
+        chmod +x wtf-darwin-arm64
+        sudo mv wtf-darwin-arm64 /usr/local/bin/wtf
+        \`\`\`
+        
+        #### Windows
+        Download the .exe file and add it to your system PATH.
+        EOF
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.calc_version.outputs.new_version }}
+        name: ${{ steps.calc_version.outputs.new_version }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        files: |
+          wtf-windows-amd64.exe
+          wtf-windows-arm64.exe
+          wtf-darwin-amd64
+          wtf-darwin-arm64
+          wtf-linux-amd64
+          wtf-linux-arm64
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
