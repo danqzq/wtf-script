@@ -37,4 +37,27 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 		}
 		return nil
 	})
+	register("typeof", func(args []interface{}, i types.IInterpreter) any {
+		if len(args) != 1 {
+			fmt.Println("typeof expects exactly 1 argument")
+			return nil
+		}
+
+		switch args[0].(type) {
+		case int64:
+			return "int"
+		case uint64:
+			return "uint"
+		case float64:
+			return "float"
+		case string:
+			return "string"
+		case bool:
+			return "bool"
+		case nil:
+			return "nil"
+		default:
+			return "unknown"
+		}
+	})
 }
