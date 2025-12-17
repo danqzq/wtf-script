@@ -11,9 +11,9 @@ WTFScript is a minimal, chaos-inspired scripting language where **randomization 
 | Type        | Description                              | Default Range / Behavior                  |
 |-------------|------------------------------------------|-------------------------------------------|
 | `int`       | 64-bit signed integer                    | Random between -1000 and 1000 (inclusive)            |
-| `uint`      | 64-bit unsigned integer                  | Random between 0 and 2000 (inclusive)            |
+| [`uint`](uint.md)      | 64-bit unsigned integer                  | Random between 0 and 2000 (inclusive)            |
 | `float`     | 64-bit float                             | Random between -1000.0 and 1000.0 (inclusive)            |
-| `unofloat`  | Uniform float between 0 and 1            | Random between 0.0 and 1.0 (inclusive)                |
+| [`unofloat`](unofloat.md)  | Unit float (strictly between 0 and 1)            | Random between 0.0 and 1.0 (inclusive)                |
 | `string`    | Random alphanumeric string               | Random 10 characters long, alphanumeric |
 | `bool`      | Random true or false                     | Random true or false (50% chance)         |
 
