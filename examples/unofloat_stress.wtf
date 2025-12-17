@@ -1,0 +1,56 @@
+// --- Passing Tests (1-10) ---
+
+// "Test 1: Overflow error"
+// unofloat f1 = 1.1;
+// print(f1);
+
+print("Test 2: Adding two floats which satisfy [0; 1.0]");
+unofloat f2 = 0.2 + 0.7;
+print(f2);
+
+print("Test 3: Unofloat + int (clamp behaviour due to FCFS)");
+unofloat f3 = 0.2;
+int num = 1;
+unofloat addition = f3 + num;
+print(addition); // Expected: 1
+
+print("Test 4: Subtracting two unofloats which satisfy [0; 1.0]");
+unofloat a = 0.1;
+unofloat b = 0.2;
+unofloat c = a - b;
+print(c); // Expected: 0
+
+print("Test 5: Storing two floating point number division into unofloat (ratio calculation)");
+float length = 20;
+float capacity = 40;
+unofloat ratio = length / capacity;
+print(ratio); // Expected: 0.5
+
+print("Test 6: Multi-type arithmetic operations in different order");
+unofloat first = 1;
+float second = 2.0;
+uint third = 3;
+unofloat result = first + second + third;
+print(result); // Expected: 1
+result = third + second + first;
+print(result); // Expected: 1
+result = second + third + first;
+print(result); // Expected: 1
+
+// "Test 7: Integer (< 0) assignment to unofloat"
+int integer = -2;
+// unofloat errorHere1 = integer;
+
+// "Test 8: Uint (> 1) assignment to unofloat"
+uint unsignedInteger = 10000000000;
+// unofloat errorHere2 = unsignedInteger;
+
+// "Test 9: Float (> 1) assignment to unofloat"
+float floatingPoint = 3.0;
+// unofloat errorHere3 = floatingPoint;
+
+print("Test 10: Subtracting unofloat with float (> 1)");
+unofloat uno = 1.0;
+float dos = 2.0;
+unofloat tres = uno - dos;
+print(tres); // Expected: 0

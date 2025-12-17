@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"math"
 	"wtf-script/types"
 )
 
@@ -137,7 +138,11 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 		if _, ok := value.(uint64); ok {
 			return nil
 		}
-		return NewRuntimeError(line, col, "type mismatch: expected float, got %T", value)
+		expectedTypeStr := "float"
+		if expectedType == types.UnoFloat {
+			expectedTypeStr = "unofloat"
+		}
+		return NewRuntimeError(line, col, "type mismatch: expected %s, got %T", expectedTypeStr, value)
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
 			return NewRuntimeError(line, col, "type mismatch: expected bool, got %T", value)
@@ -159,12 +164,22 @@ func castToType(expectedType types.VarType, value any) any {
 		if value, ok := value.(float64); ok {
 			return uint64(value)
 		}
-	case types.Float, types.UnoFloat:
+	case types.Float:
 		if value, ok := value.(int64); ok {
 			return float64(value)
 		}
 		if value, ok := value.(uint64); ok {
 			return float64(value)
+		}
+	case types.UnoFloat:
+		if value, ok := value.(int64); ok {
+			return clampUnofloat(float64(value))
+		}
+		if value, ok := value.(uint64); ok {
+			return clampUnofloat(float64(value))
+		}
+		if value, ok := value.(float64); ok {
+			return clampUnofloat(value)
 		}
 	case types.Int:
 		if value, ok := value.(uint64); ok {
@@ -175,4 +190,8 @@ func castToType(expectedType types.VarType, value any) any {
 		}
 	}
 	return value
+}
+
+func clampUnofloat(value float64) float64 {
+	return math.Max(0.0, math.Min(1.0, value))
 }

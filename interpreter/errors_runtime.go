@@ -96,3 +96,11 @@ func NewInvalidRangeError(line, col int, reason string) *RuntimeError {
 		Msg:    reason,
 	}
 }
+
+func NewInvalidUnofloatAssignmentError(line, col int, value float64) *RuntimeError {
+	return &RuntimeError{
+		Line:   line,
+		Column: col,
+		Msg:    fmt.Sprintf("cannot assign %f to unofloat: value out of range [0.0, 1.0]", value),
+	}
+}

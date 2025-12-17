@@ -174,18 +174,29 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		expectedType := types.VarType(varTypeFromToken(node.Type))
+		_, isIdent := node.Value.(*Identifier)
 
+		switch expectedType {
+		// Special handling for Unofloat overflow + underflow
+		case types.UnoFloat:
+			if val, ok := evaluated.(float64); ok && isIdent && (val < 0 || val > 1) {
+				return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
+			}
+			if val, ok := evaluated.(int64); ok && (val < 0 || val > 1) {
+				if isIdent {
+					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
+				}
+				evaluated = float64(val)
+			}
 		// Special handling for Uint underflow vs strict literal check
-		if expectedType == types.Uint {
+		case types.Uint:
 			if val, ok := evaluated.(int64); ok && val < 0 {
-				_, isIdent := node.Value.(*Identifier)
 				if isNegativeLiteral(node.Value) || isIdent {
 					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", val)
 				}
 				// It's a computed value (e.g. 1 + -10), allow underflow
 				evaluated = uint64(val)
 			} else if val, ok := evaluated.(float64); ok && val < 0 {
-				_, isIdent := node.Value.(*Identifier)
 				if isNegativeLiteral(node.Value) || isIdent {
 					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", val)
 				}
@@ -228,15 +239,27 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 			return nil, err
 		}
 
-		if v.Type == types.Uint {
+		_, isIdent := node.Value.(*Identifier)
+
+		switch v.Type {
+		case types.UnoFloat:
+			if val, ok := val.(float64); ok {
+				if isIdent && (val < 0 || val > 1) {
+					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
+				}
+			}
+			if val, ok := val.(int64); ok {
+				if isIdent && (val < 0 || val > 1) {
+					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
+				}
+			}
+		case types.Uint:
 			if intVal, ok := val.(int64); ok && intVal < 0 {
-				_, isIdent := node.Value.(*Identifier)
 				if isNegativeLiteral(node.Value) || isIdent {
 					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", intVal)
 				}
 			}
 			if floatVal, ok := val.(float64); ok && floatVal < 0 {
-				_, isIdent := node.Value.(*Identifier)
 				if isNegativeLiteral(node.Value) || isIdent {
 					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", floatVal)
 				}
