@@ -112,7 +112,7 @@ See [`docs/spec.md`](docs/spec.md) for the full language specification.
 * [ ] Arrays and maps
 * [ ] REPL mode
 * [ ] Syntax highlighting plugin for VSCode
-* [ ] Web playground
+* [x] Web playground
 
 ---
 
