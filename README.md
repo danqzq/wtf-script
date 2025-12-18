@@ -116,6 +116,15 @@ See [`docs/spec.md`](docs/spec.md) for the full language specification.
 
 ---
 
+## 👥 Maintainers
+
+| Maintainers     | Danial Jumagaliyev | Elshad Humbatli |
+|-----------------|:---:|:--------:|
+| Contributor     | ![danqzq](https://github.com/danqzq.png?size=64)<br>(The Creator) | ![ElshadHu](https://github.com/ElshadHu.png?size=64)<br>(Top G) |
+| GitHub Profile | [@danqzq](https://github.com/danqzq) | [@ElshadHu](https://github.com/ElshadHu) |
+
+---
+
 ## 🤝 Contributing
 
 Pull requests are welcome. Feel free to file issues for bugs, suggestions, or chaotic ideas.
