@@ -330,6 +330,23 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 	return i.applyOp(node.Operator, left, right, pos)
 }
 
+func defaultApplyOp[T int64 | uint64 | float64](op TokenType, l, r T) (any, error) {
+	switch op {
+	case PLUS:
+		return l + r, nil
+	case MINUS:
+		return l - r, nil
+	case ASTERISK:
+		return l * r, nil
+	case SLASH:
+		if r == 0 {
+			return nil, fmt.Errorf("division by zero")
+		}
+		return l / r, nil
+	}
+	return nil, fmt.Errorf("unknown operator: %s", op)
+}
+
 func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any, error) {
 	// Handle comparison operators separately
 	if op == EQ || op == NEQ || op == LT || op == LTE || op == GT || op == GTE {
@@ -344,51 +361,15 @@ func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any
 	switch l := leftVal.(type) {
 	case int64:
 		r := rightVal.(int64)
-		switch op {
-		case PLUS:
-			return l + r, nil
-		case MINUS:
-			return l - r, nil
-		case ASTERISK:
-			return l * r, nil
-		case SLASH:
-			if r == 0 {
-				return nil, NewDivisionByZeroError(pos)
-			}
-			return l / r, nil
-		}
+		return defaultApplyOp(op, l, r)
 
 	case uint64:
 		r := rightVal.(uint64)
-		switch op {
-		case PLUS:
-			return l + r, nil
-		case MINUS:
-			return l - r, nil
-		case ASTERISK:
-			return l * r, nil
-		case SLASH:
-			if r == 0 {
-				return nil, NewDivisionByZeroError(pos)
-			}
-			return l / r, nil
-		}
+		return defaultApplyOp(op, l, r)
 
 	case float64:
 		r := rightVal.(float64)
-		switch op {
-		case PLUS:
-			return l + r, nil
-		case MINUS:
-			return l - r, nil
-		case ASTERISK:
-			return l * r, nil
-		case SLASH:
-			if r == 0.0 {
-				return nil, NewDivisionByZeroError(pos)
-			}
-			return l / r, nil
-		}
+		return defaultApplyOp(op, l, r)
 
 	case types.Unofloat:
 		r := rightVal.(float64)
@@ -422,6 +403,24 @@ func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any
 	return nil, NewUnknownOperatorError(pos, op, left, right)
 }
 
+func defaultComparisonOp[T int64 | uint64 | float64 | string](op TokenType, l, r T) (bool, error) {
+	switch op {
+	case EQ:
+		return l == r, nil
+	case NEQ:
+		return l != r, nil
+	case LT:
+		return l < r, nil
+	case LTE:
+		return l <= r, nil
+	case GT:
+		return l > r, nil
+	case GTE:
+		return l >= r, nil
+	}
+	return false, fmt.Errorf("unknown comparison operator: %s", op)
+}
+
 func (i *Interpreter) applyComparisonOp(op TokenType, left, right any, pos *Position) (any, error) {
 	leftVal, rightVal, err := i.coerceValues(left, right, pos)
 	if err != nil {
@@ -431,90 +430,20 @@ func (i *Interpreter) applyComparisonOp(op TokenType, left, right any, pos *Posi
 	switch l := leftVal.(type) {
 	case int64:
 		r := rightVal.(int64)
-		switch op {
-		case EQ:
-			return l == r, nil
-		case NEQ:
-			return l != r, nil
-		case LT:
-			return l < r, nil
-		case LTE:
-			return l <= r, nil
-		case GT:
-			return l > r, nil
-		case GTE:
-			return l >= r, nil
-		}
-
+		return defaultComparisonOp(op, l, r)
 	case uint64:
 		r := rightVal.(uint64)
-		switch op {
-		case EQ:
-			return l == r, nil
-		case NEQ:
-			return l != r, nil
-		case LT:
-			return l < r, nil
-		case LTE:
-			return l <= r, nil
-		case GT:
-			return l > r, nil
-		case GTE:
-			return l >= r, nil
-		}
-
+		return defaultComparisonOp(op, l, r)
 	case float64:
 		r := rightVal.(float64)
-		switch op {
-		case EQ:
-			return l == r, nil
-		case NEQ:
-			return l != r, nil
-		case LT:
-			return l < r, nil
-		case LTE:
-			return l <= r, nil
-		case GT:
-			return l > r, nil
-		case GTE:
-			return l >= r, nil
-		}
-
+		return defaultComparisonOp(op, l, r)
 	case types.Unofloat:
 		r := rightVal.(float64)
 		fl := float64(l)
-		switch op {
-		case EQ:
-			return fl == r, nil
-		case NEQ:
-			return fl != r, nil
-		case LT:
-			return fl < r, nil
-		case LTE:
-			return fl <= r, nil
-		case GT:
-			return fl > r, nil
-		case GTE:
-			return fl >= r, nil
-		}
-
+		return defaultComparisonOp(op, fl, r)
 	case string:
 		r := rightVal.(string)
-		switch op {
-		case EQ:
-			return l == r, nil
-		case NEQ:
-			return l != r, nil
-		case LT:
-			return l < r, nil
-		case LTE:
-			return l <= r, nil
-		case GT:
-			return l > r, nil
-		case GTE:
-			return l >= r, nil
-		}
-
+		return defaultComparisonOp(op, l, r)
 	case bool:
 		r, ok := rightVal.(bool)
 		if !ok {
@@ -552,53 +481,34 @@ func (i *Interpreter) isTruthy(val any) bool {
 		return true
 	}
 }
+
+func coerceHandleRight[T int64 | uint64 | float64 | types.Unofloat](l T, r any, pos *Position) (T, T, error) {
+	switch rv := r.(type) {
+	case int64:
+		return l, T(rv), nil
+	case uint64:
+		return l, T(rv), nil
+	case float64:
+		return l, T(rv), nil
+	case types.Unofloat:
+		return l, T(float64(rv)), nil
+	default:
+		var zero T
+		return zero, zero, NewTypeMismatchError(pos, l, r)
+	}
+}
+
 func (i *Interpreter) coerceValues(left, right any, pos *Position) (any, any, error) {
 	switch l := left.(type) {
 	case int64:
 		// Left is Int: Coerce Right to Int (FCFS)
-		switch r := right.(type) {
-		case int64:
-			return l, r, nil
-		case uint64:
-			return l, int64(r), nil
-		case float64:
-			return l, int64(r), nil
-		case types.Unofloat:
-			return l, int64(float64(r)), nil
-		default:
-			return nil, nil, i.typeMismatchError(left, right, pos)
-		}
-
+		return coerceHandleRight(l, right, pos)
 	case uint64:
 		// Left is Uint: Coerce Right to Uint (FCFS)
-		switch r := right.(type) {
-		case uint64:
-			return l, r, nil
-		case int64:
-			return l, uint64(r), nil
-		case float64:
-			return l, uint64(r), nil
-		case types.Unofloat:
-			return l, uint64(float64(r)), nil
-		default:
-			return nil, nil, i.typeMismatchError(left, right, pos)
-		}
-
+		return coerceHandleRight(l, right, pos)
 	case float64:
 		// Left is Float: Coerce Right to Float (FCFS)
-		switch r := right.(type) {
-		case float64:
-			return l, r, nil
-		case int64:
-			return l, float64(r), nil
-		case uint64:
-			return l, float64(r), nil
-		case types.Unofloat:
-			return l, float64(r), nil
-		default:
-			return nil, nil, i.typeMismatchError(left, right, pos)
-		}
-
+		return coerceHandleRight(l, right, pos)
 	case types.Unofloat:
 		// Left is Unofloat: Coerce Right to Float, keep left as Unofloat (FCFS)
 		switch r := right.(type) {
