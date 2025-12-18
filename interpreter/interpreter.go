@@ -259,11 +259,6 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 			return nil, err
 		}
 
-		err = i.checkTypeCompatibility(v.Type, val, pos)
-		if err != nil {
-			return nil, err
-		}
-
 		shouldValidateStrict := isLiteral(node.Value) || isIdentifier(node.Value)
 
 		// Special handling for unofloat and uint assignment validation
