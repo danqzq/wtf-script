@@ -31,19 +31,35 @@ const (
 	ASTERISK TokenType = "*"
 	SLASH    TokenType = "/"
 
+	// Comparison operators
+	EQ   TokenType = "=="
+	NEQ  TokenType = "!="
+	LT   TokenType = "<"
+	LTE  TokenType = "<="
+	GT   TokenType = ">"
+	GTE  TokenType = ">="
+	BANG TokenType = "!"
+
 	// Delimiters
 	SEMICOLON TokenType = ";"
 	COMMA     TokenType = ","
 	LPAREN    TokenType = "("
 	RPAREN    TokenType = ")"
+	LBRACE    TokenType = "{"
+	RBRACE    TokenType = "}"
 
-	// Type Keywords
+	// Type keywords
 	TYPE_INT      TokenType = "INT_TYPE"
 	TYPE_UINT     TokenType = "UINT_TYPE"
 	TYPE_FLOAT    TokenType = "FLOAT_TYPE"
 	TYPE_UNOFLOAT TokenType = "UNOFLOAT_TYPE"
 	TYPE_BOOL     TokenType = "BOOL_TYPE"
 	TYPE_STRING   TokenType = "STRING_TYPE"
+
+	// Control flow keywords
+	IF     TokenType = "IF"
+	ELSE   TokenType = "ELSE"
+	IFRAND TokenType = "IFRAND"
 )
 
 // keywords maps keyword strings to their TokenType
@@ -56,6 +72,9 @@ var keywords = map[string]TokenType{
 	"string":   TYPE_STRING,
 	"true":     TRUE,
 	"false":    FALSE,
+	"if":       IF,
+	"else":     ELSE,
+	"ifrand":   IFRAND,
 }
 
 // LookupIdent checks if an identifier is a keyword

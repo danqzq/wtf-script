@@ -17,6 +17,12 @@ const (
 )
 
 var precedences = map[TokenType]int{
+	EQ:       EQUALS,
+	NEQ:      EQUALS,
+	LT:       LESSGREATER,
+	LTE:      LESSGREATER,
+	GT:       LESSGREATER,
+	GTE:      LESSGREATER,
 	PLUS:     SUM,
 	MINUS:    SUM,
 	SLASH:    PRODUCT,
@@ -54,6 +60,7 @@ func NewParser(l *Lexer) *Parser {
 	p.registerPrefix(FALSE, p.parseBoolean)
 	p.registerPrefix(STRING, p.parseStringLiteral)
 	p.registerPrefix(MINUS, p.parsePrefixExpression)
+	p.registerPrefix(BANG, p.parsePrefixExpression)
 	p.registerPrefix(LPAREN, p.parseGroupedExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
@@ -61,6 +68,12 @@ func NewParser(l *Lexer) *Parser {
 	p.registerInfix(MINUS, p.parseInfixExpression)
 	p.registerInfix(SLASH, p.parseInfixExpression)
 	p.registerInfix(ASTERISK, p.parseInfixExpression)
+	p.registerInfix(EQ, p.parseInfixExpression)
+	p.registerInfix(NEQ, p.parseInfixExpression)
+	p.registerInfix(LT, p.parseInfixExpression)
+	p.registerInfix(LTE, p.parseInfixExpression)
+	p.registerInfix(GT, p.parseInfixExpression)
+	p.registerInfix(GTE, p.parseInfixExpression)
 	p.registerInfix(LPAREN, p.parseCallExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
@@ -117,6 +130,8 @@ func (p *Parser) parseStatement() Statement {
 	switch p.curToken.Type {
 	case TYPE_INT, TYPE_UINT, TYPE_FLOAT, TYPE_UNOFLOAT, TYPE_BOOL, TYPE_STRING:
 		return p.parseVarStatement()
+	case IF, IFRAND:
+		return p.parseIfStatement()
 	case IDENT:
 		// Could be an assignment or an expression statement
 		// If peek is ASSIGN, it's an assignment
@@ -355,4 +370,76 @@ func (p *Parser) curPrecedence() int {
 
 func (p *Parser) noPrefixParseFnError(t TokenType) {
 	p.errors = append(p.errors, NewNoPrefixParseFnError(&p.curToken, t))
+}
+
+func (p *Parser) parseIfStatement() *IfStmt {
+	stmt := &IfStmt{Token: p.curToken}
+	isIfRand := p.curToken.Type == IFRAND
+
+	if isIfRand {
+		if p.peekToken.Type == LPAREN {
+			// ifrand(0.5) { ... }
+			p.nextToken() // consume ifrand
+			p.nextToken() // consume (
+			stmt.Condition = p.parseExpression(LOWEST)
+
+			if !p.expectPeek(RPAREN) {
+				return nil
+			}
+		}
+	} else {
+		// Regular if statement: if (condition) { ... }
+		if !p.expectPeek(LPAREN) {
+			return nil
+		}
+
+		p.nextToken()
+		stmt.Condition = p.parseExpression(LOWEST)
+
+		if !p.expectPeek(RPAREN) {
+			return nil
+		}
+		// else: ifrand without probability - will use 0.5 default
+	}
+
+	if !p.expectPeek(LBRACE) {
+		return nil
+	}
+
+	stmt.Consequence = p.parseBlockStatement()
+
+	if p.peekToken.Type == ELSE {
+		p.nextToken() // consume }
+
+		if p.peekToken.Type == IF || p.peekToken.Type == IFRAND {
+			// else if or else ifrand
+			p.nextToken()
+			stmt.Alternative = p.parseIfStatement()
+		} else {
+			// else
+			if !p.expectPeek(LBRACE) {
+				return nil
+			}
+			stmt.Alternative = p.parseBlockStatement()
+		}
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseBlockStatement() *BlockStmt {
+	block := &BlockStmt{Token: p.curToken}
+	block.Statements = []Statement{}
+
+	p.nextToken()
+
+	for p.curToken.Type != RBRACE && p.curToken.Type != EOF {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+		p.nextToken()
+	}
+
+	return block
 }

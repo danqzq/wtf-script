@@ -233,3 +233,48 @@ type BooleanLiteral struct {
 func (bl *BooleanLiteral) expressionNode()      {}
 func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
 func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
+
+// BlockStmt represents a block of statements
+type BlockStmt struct {
+	Token      Token // the { token
+	Statements []Statement
+}
+
+func (bs *BlockStmt) statementNode()       {}
+func (bs *BlockStmt) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BlockStmt) String() string {
+	var out bytes.Buffer
+	for _, s := range bs.Statements {
+		out.WriteString(s.String())
+	}
+	return out.String()
+}
+
+// IfStmt represents an if statement
+type IfStmt struct {
+	Token       Token // the 'if' or 'ifrand' token
+	Condition   Expression
+	Consequence *BlockStmt
+	Alternative Statement // could be another IfStmt (for else if) or BlockStmt (for else)
+}
+
+func (is *IfStmt) statementNode()       {}
+func (is *IfStmt) TokenLiteral() string { return is.Token.Literal }
+func (is *IfStmt) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if")
+	if is.Condition != nil {
+		out.WriteString(" ")
+		out.WriteString(is.Condition.String())
+	}
+	out.WriteString(" ")
+	out.WriteString(is.Consequence.String())
+
+	if is.Alternative != nil {
+		out.WriteString(" else ")
+		out.WriteString(is.Alternative.String())
+	}
+
+	return out.String()
+}

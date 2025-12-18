@@ -81,6 +81,10 @@ func (i *Interpreter) Evaluate(node Node) (any, error) {
 		return i.evalVarDecl(node)
 	case *AssignStmt:
 		return i.evalAssignStmt(node)
+	case *BlockStmt:
+		return i.evalBlockStmt(node)
+	case *IfStmt:
+		return i.evalIfStmt(node)
 
 	// Expressions
 	case *Identifier:
@@ -296,6 +300,11 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 }
 
 func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, error) {
+	// Handle comparison operators separately
+	if op == "==" || op == "!=" || op == "<" || op == "<=" || op == ">" || op == ">=" {
+		return i.applyComparisonOp(op, left, right, line, col)
+	}
+
 	leftVal, rightVal, err := i.coerceValues(left, right, line, col)
 	if err != nil {
 		return nil, err
@@ -376,6 +385,117 @@ func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, e
 	return nil, NewUnknownOperatorError(line, col, op, left, right)
 }
 
+func (i *Interpreter) applyComparisonOp(op string, left, right any, line, col int) (any, error) {
+	leftVal, rightVal, err := i.coerceValues(left, right, line, col)
+	if err != nil {
+		return nil, err
+	}
+
+	switch l := leftVal.(type) {
+	case int64:
+		r := rightVal.(int64)
+		switch op {
+		case "==":
+			return l == r, nil
+		case "!=":
+			return l != r, nil
+		case "<":
+			return l < r, nil
+		case "<=":
+			return l <= r, nil
+		case ">":
+			return l > r, nil
+		case ">=":
+			return l >= r, nil
+		}
+
+	case uint64:
+		r := rightVal.(uint64)
+		switch op {
+		case "==":
+			return l == r, nil
+		case "!=":
+			return l != r, nil
+		case "<":
+			return l < r, nil
+		case "<=":
+			return l <= r, nil
+		case ">":
+			return l > r, nil
+		case ">=":
+			return l >= r, nil
+		}
+
+	case float64:
+		r := rightVal.(float64)
+		switch op {
+		case "==":
+			return l == r, nil
+		case "!=":
+			return l != r, nil
+		case "<":
+			return l < r, nil
+		case "<=":
+			return l <= r, nil
+		case ">":
+			return l > r, nil
+		case ">=":
+			return l >= r, nil
+		}
+
+	case types.Unofloat:
+		r := rightVal.(float64)
+		fl := float64(l)
+		switch op {
+		case "==":
+			return fl == r, nil
+		case "!=":
+			return fl != r, nil
+		case "<":
+			return fl < r, nil
+		case "<=":
+			return fl <= r, nil
+		case ">":
+			return fl > r, nil
+		case ">=":
+			return fl >= r, nil
+		}
+
+	case string:
+		r := rightVal.(string)
+		switch op {
+		case "==":
+			return l == r, nil
+		case "!=":
+			return l != r, nil
+		case "<":
+			return l < r, nil
+		case "<=":
+			return l <= r, nil
+		case ">":
+			return l > r, nil
+		case ">=":
+			return l >= r, nil
+		}
+
+	case bool:
+		r, ok := rightVal.(bool)
+		if !ok {
+			return nil, NewRuntimeError(line, col, "cannot compare bool with %T", rightVal)
+		}
+		switch op {
+		case "==":
+			return l == r, nil
+		case "!=":
+			return l != r, nil
+		default:
+			return nil, NewRuntimeError(line, col, "operator %s not supported for bool", op)
+		}
+	}
+
+	return nil, NewUnknownOperatorError(line, col, op, left, right)
+}
+
 func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, error) {
 	switch l := left.(type) {
 	case int64:
@@ -445,7 +565,9 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 		return nil, nil, i.typeMismatchError(left, right, line, col)
 
 	case bool:
-		// Bool does not support arithmetic/concatenation with other types
+		if r, ok := right.(bool); ok {
+			return l, r, nil
+		}
 		return nil, nil, i.typeMismatchError(left, right, line, col)
 	}
 	return nil, nil, NewRuntimeError(line, col, "unsupported left operand type: %T", left)
@@ -504,4 +626,74 @@ func (i *Interpreter) evalCallExpr(node *CallExpr) (any, error) {
 	}
 
 	return nil, NewFunctionNotFoundError(node, ident.Value)
+}
+
+func (i *Interpreter) evalBlockStmt(block *BlockStmt) (any, error) {
+	var result any
+	for _, statement := range block.Statements {
+		val, err := i.Evaluate(statement)
+		if err != nil {
+			return nil, err
+		}
+		result = val
+	}
+	return result, nil
+}
+
+func (i *Interpreter) evalIfStmt(node *IfStmt) (any, error) {
+	var condition bool
+
+	if node.Token.Type == IFRAND {
+		// ifrand statement
+		if node.Condition != nil {
+			// ifrand(probability)
+			probVal, err := i.Evaluate(node.Condition)
+			if err != nil {
+				return nil, err
+			}
+
+			var probability float64
+			switch p := probVal.(type) {
+			case float64:
+				probability = p
+			case int64:
+				probability = float64(p)
+			case uint64:
+				probability = float64(p)
+			case types.Unofloat:
+				probability = float64(p)
+			default:
+				return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "ifrand probability must be a number, got %T", probVal)
+			}
+
+			if probability < 0.0 || probability > 1.0 {
+				return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "ifrand probability must be between 0 and 1, got %f", probability)
+			}
+
+			condition = i.Rand.Float64() < probability
+		} else {
+			// ifrand without probability (default 0.5)
+			condition = i.Rand.Float64() < 0.5
+		}
+	} else {
+		// Regular if statement
+		condVal, err := i.Evaluate(node.Condition)
+		if err != nil {
+			return nil, err
+		}
+
+		boolCond, ok := condVal.(bool)
+		if !ok {
+			return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "if condition must evaluate to bool, got %T", condVal)
+		}
+		condition = boolCond
+	}
+
+	if condition {
+		return i.Evaluate(node.Consequence)
+	} else if node.Alternative != nil {
+		return i.Evaluate(node.Alternative)
+	}
+
+	return nil, nil
 }

@@ -176,7 +176,33 @@ func lexStart(l *Lexer) stateFn {
 		case ch == '*':
 			l.emit(ASTERISK)
 		case ch == '=':
-			l.emit(ASSIGN)
+			if l.peek() == '=' {
+				l.next()
+				l.emit(EQ)
+			} else {
+				l.emit(ASSIGN)
+			}
+		case ch == '!':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(NEQ)
+			} else {
+				l.emit(BANG)
+			}
+		case ch == '<':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(LTE)
+			} else {
+				l.emit(LT)
+			}
+		case ch == '>':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(GTE)
+			} else {
+				l.emit(GT)
+			}
 		case ch == ';':
 			l.emit(SEMICOLON)
 		case ch == ',':
@@ -185,6 +211,10 @@ func lexStart(l *Lexer) stateFn {
 			l.emit(LPAREN)
 		case ch == ')':
 			l.emit(RPAREN)
+		case ch == '{':
+			l.emit(LBRACE)
+		case ch == '}':
+			l.emit(RBRACE)
 		case ch == '"':
 			return lexString
 		case isDigit(ch):
