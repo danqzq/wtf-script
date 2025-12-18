@@ -9,11 +9,14 @@ type Variable struct {
 
 type VarType int
 
+// Distinct type for unofloat to differentiate from float64
+type Unofloat float64
+
 const (
 	Int VarType = iota
 	Uint
 	Float
-	UnoFloat
+	UnitFloat // unofloat
 	Bool
 	String
 	Unknown
@@ -27,7 +30,7 @@ func (t VarType) String() string {
 		return "uint"
 	case Float:
 		return "float"
-	case UnoFloat:
+	case UnitFloat:
 		return "unofloat"
 	case Bool:
 		return "bool"
@@ -44,8 +47,10 @@ func (v Variable) ToString() string {
 		return fmt.Sprintf("%d", v.Value.(int))
 	case Uint:
 		return fmt.Sprintf("%d", v.Value.(uint64))
-	case Float, UnoFloat:
+	case Float:
 		return fmt.Sprintf("%f", v.Value.(float64))
+	case UnitFloat:
+		return fmt.Sprintf("%f", v.Value.(Unofloat))
 	case Bool:
 		return fmt.Sprintf("%t", v.Value.(bool))
 	case String:

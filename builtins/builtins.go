@@ -6,7 +6,7 @@ import (
 )
 
 func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
-	register("print", func(args []interface{}, i types.IInterpreter) any {
+	register("print", func(args []any, i types.IInterpreter) any {
 		if len(args) < 1 {
 			fmt.Println("print expects at least 1 argument")
 			return nil
@@ -20,7 +20,7 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 		return nil
 	})
 
-	register("seed", func(args []interface{}, i types.IInterpreter) any {
+	register("seed", func(args []any, i types.IInterpreter) any {
 		if len(args) != 1 {
 			fmt.Println("seed expects exactly 1 argument")
 			return nil
@@ -37,7 +37,7 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 		}
 		return nil
 	})
-	register("typeof", func(args []interface{}, i types.IInterpreter) any {
+	register("typeof", func(args []any, i types.IInterpreter) any {
 		if len(args) != 1 {
 			fmt.Println("typeof expects exactly 1 argument")
 			return nil
@@ -50,6 +50,8 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 			return "uint"
 		case float64:
 			return "float"
+		case types.Unofloat:
+			return "unofloat"
 		case string:
 			return "string"
 		case bool:

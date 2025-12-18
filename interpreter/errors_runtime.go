@@ -97,6 +97,14 @@ func NewInvalidRangeError(line, col int, reason string) *RuntimeError {
 	}
 }
 
+func NewNegativeUintAssignmentError(line, col int, value int64) *RuntimeError {
+	return &RuntimeError{
+		Line:   line,
+		Column: col,
+		Msg:    fmt.Sprintf("cannot assign %d to uint: value must be non-negative", value),
+	}
+}
+
 func NewInvalidUnofloatAssignmentError(line, col int, value float64) *RuntimeError {
 	return &RuntimeError{
 		Line:   line,

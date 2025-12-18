@@ -57,14 +57,14 @@ func (i *Interpreter) Execute(code string) {
 
 	if len(p.Errors()) > 0 {
 		for _, msg := range p.Errors() {
-			fmt.Printf("Parser Error: %s\n", msg)
+			fmt.Printf("\033[31m%s\033[0m\n", msg)
 		}
 		return
 	}
 
 	_, err := i.Evaluate(program)
 	if err != nil {
-		fmt.Printf("Runtime Error: %s\n", err)
+		fmt.Printf("\033[31m%s\033[0m\n", err)
 	}
 }
 
@@ -126,25 +126,55 @@ func (i *Interpreter) evalIdentifier(node *Identifier) (any, error) {
 	return nil, NewIdentifierNotFoundError(node)
 }
 
-func isNegativeLiteral(node Node) bool {
-	switch n := node.(type) {
-	case *UnaryExpr:
-		if n.Operator == "-" {
-			switch n.Right.(type) {
-			case *IntegerLiteral:
-				return true
-			case *FloatLiteral:
-				return true
-			}
-		}
-	}
-	if lit, ok := node.(*IntegerLiteral); ok {
-		return lit.Value < 0
-	}
-	if lit, ok := node.(*FloatLiteral); ok {
-		return lit.Value < 0
+func isLiteral(node Node) bool {
+	switch node.(type) {
+	case *IntegerLiteral, *FloatLiteral, *StringLiteral, *BooleanLiteral:
+		return true
 	}
 	return false
+}
+
+func isIdentifier(node Node) bool {
+	_, ok := node.(*Identifier)
+	return ok
+}
+
+// validateUnofloatAssignment validates assignment to unofloat variables.
+// shouldValidateStrict is true for literals and variables, false for computed expressions.
+// Returns error if validation fails, or modified value for int64->float64 coercion.
+func (i *Interpreter) validateUnofloatAssignment(value any, shouldValidateStrict bool, token *Token) (any, error) {
+	if val, ok := value.(float64); ok && shouldValidateStrict && (val < 0 || val > 1) {
+		return nil, NewInvalidUnofloatAssignmentError(token.Line, token.Column, val)
+	}
+	if val, ok := value.(types.Unofloat); ok && shouldValidateStrict && (float64(val) < 0 || float64(val) > 1) {
+		return nil, NewInvalidUnofloatAssignmentError(token.Line, token.Column, float64(val))
+	}
+	if val, ok := value.(int64); ok && (val < 0 || val > 1) {
+		if shouldValidateStrict {
+			return nil, NewInvalidUnofloatAssignmentError(token.Line, token.Column, float64(val))
+		}
+		return float64(val), nil // Coerce for clamping
+	}
+	return value, nil
+}
+
+// validateUintAssignment validates assignment to uint variables.
+// shouldValidateStrict is true for literals and variables, false for computed expressions.
+// Returns error if validation fails, or modified value for negative computed values.
+func (i *Interpreter) validateUintAssignment(value any, shouldValidateStrict bool, token *Token) (any, error) {
+	if val, ok := value.(int64); ok && val < 0 {
+		if shouldValidateStrict {
+			return nil, NewNegativeUintAssignmentError(token.Line, token.Column, val)
+		}
+		return uint64(val), nil // Allow underflow for computed values
+	}
+	if val, ok := value.(float64); ok && val < 0 {
+		if shouldValidateStrict {
+			return nil, NewNegativeUintAssignmentError(token.Line, token.Column, int64(val))
+		}
+		return uint64(val), nil // Allow underflow for computed values
+	}
+	return value, nil
 }
 
 func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
@@ -174,34 +204,22 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		expectedType := types.VarType(varTypeFromToken(node.Type))
-		_, isIdent := node.Value.(*Identifier)
+		shouldValidateStrict := isLiteral(node.Value) || isIdentifier(node.Value)
 
+		// Special handling for unofloat and uint assignment validation
 		switch expectedType {
-		// Special handling for Unofloat overflow + underflow
-		case types.UnoFloat:
-			if val, ok := evaluated.(float64); ok && isIdent && (val < 0 || val > 1) {
-				return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
+		case types.UnitFloat:
+			validatedVal, err := i.validateUnofloatAssignment(evaluated, shouldValidateStrict, &node.Token)
+			if err != nil {
+				return nil, err
 			}
-			if val, ok := evaluated.(int64); ok && (val < 0 || val > 1) {
-				if isIdent {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
-				}
-				evaluated = float64(val)
-			}
-		// Special handling for Uint underflow vs strict literal check
+			evaluated = validatedVal
 		case types.Uint:
-			if val, ok := evaluated.(int64); ok && val < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", val)
-				}
-				// It's a computed value (e.g. 1 + -10), allow underflow
-				evaluated = uint64(val)
-			} else if val, ok := evaluated.(float64); ok && val < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", val)
-				}
-				evaluated = uint64(val)
+			validatedVal, err := i.validateUintAssignment(evaluated, shouldValidateStrict, &node.Token)
+			if err != nil {
+				return nil, err
 			}
+			evaluated = validatedVal
 		}
 
 		err = i.checkTypeCompatibility(expectedType, evaluated, node.Token.Line, node.Token.Column)
@@ -239,31 +257,22 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 			return nil, err
 		}
 
-		_, isIdent := node.Value.(*Identifier)
+		shouldValidateStrict := isLiteral(node.Value) || isIdentifier(node.Value)
 
+		// Special handling for unofloat and uint assignment validation
 		switch v.Type {
-		case types.UnoFloat:
-			if val, ok := val.(float64); ok {
-				if isIdent && (val < 0 || val > 1) {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
-				}
+		case types.UnitFloat:
+			validatedVal, err := i.validateUnofloatAssignment(val, shouldValidateStrict, &node.Token)
+			if err != nil {
+				return nil, err
 			}
-			if val, ok := val.(int64); ok {
-				if isIdent && (val < 0 || val > 1) {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
-				}
-			}
+			val = validatedVal
 		case types.Uint:
-			if intVal, ok := val.(int64); ok && intVal < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", intVal)
-				}
+			validatedVal, err := i.validateUintAssignment(val, shouldValidateStrict, &node.Token)
+			if err != nil {
+				return nil, err
 			}
-			if floatVal, ok := val.(float64); ok && floatVal < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", floatVal)
-				}
-			}
+			val = validatedVal
 		}
 
 		v.Value = castToType(v.Type, val)
@@ -341,6 +350,22 @@ func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, e
 			return l / r, nil
 		}
 
+	case types.Unofloat:
+		r := rightVal.(float64)
+		switch op {
+		case "+":
+			return clampUnofloat(float64(l) + r), nil
+		case "-":
+			return clampUnofloat(float64(l) - r), nil
+		case "*":
+			return clampUnofloat(float64(l) * r), nil
+		case "/":
+			if r == 0.0 {
+				return nil, NewDivisionByZeroError(line, col)
+			}
+			return clampUnofloat(float64(l) / r), nil
+		}
+
 	case string:
 		if op != "+" {
 			return nil, NewRuntimeError(line, col, "unknown string operator: %s", op)
@@ -362,6 +387,8 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 			return l, int64(r), nil
 		case float64:
 			return l, int64(r), nil
+		case types.Unofloat:
+			return l, int64(float64(r)), nil
 		default:
 			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
@@ -375,6 +402,8 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 			return l, uint64(r), nil
 		case float64:
 			return l, uint64(r), nil
+		case types.Unofloat:
+			return l, uint64(float64(r)), nil
 		default:
 			return nil, nil, i.typeMismatchError(left, right, line, col)
 		}
@@ -382,6 +411,23 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 	case float64:
 		// Left is Float: Coerce Right to Float (FCFS)
 		switch r := right.(type) {
+		case float64:
+			return l, r, nil
+		case int64:
+			return l, float64(r), nil
+		case uint64:
+			return l, float64(r), nil
+		case types.Unofloat:
+			return l, float64(r), nil
+		default:
+			return nil, nil, i.typeMismatchError(left, right, line, col)
+		}
+
+	case types.Unofloat:
+		// Left is Unofloat: Coerce Right to Float, keep left as Unofloat (FCFS)
+		switch r := right.(type) {
+		case types.Unofloat:
+			return l, float64(r), nil
 		case float64:
 			return l, r, nil
 		case int64:
@@ -424,6 +470,8 @@ func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
 			return 0 - val, nil
 		case float64:
 			return -val, nil
+		case types.Unofloat:
+			return -float64(val), nil
 		}
 	case "!":
 		if val, ok := right.(bool); ok {

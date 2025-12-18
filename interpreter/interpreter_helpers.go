@@ -14,7 +14,7 @@ func varTypeFromToken(t TokenType) int {
 	case TYPE_FLOAT:
 		return int(types.Float)
 	case TYPE_UNOFLOAT:
-		return int(types.UnoFloat)
+		return int(types.UnitFloat)
 	case TYPE_BOOL:
 		return int(types.Bool)
 	case TYPE_STRING:
@@ -35,7 +35,7 @@ func (i *Interpreter) randomValue(t TokenType) any {
 	case TYPE_FLOAT:
 		return i.Rand.Float64() * 1000.0
 	case TYPE_UNOFLOAT:
-		return i.Rand.Float64()
+		return types.Unofloat(i.Rand.Float64())
 	case TYPE_STRING:
 		return i.GenerateRandomString(i.Config.RandomStringLength, i.Config.RandomStringCharset)
 	}
@@ -93,6 +93,8 @@ func toFloat64(v any) (float64, bool) {
 		return float64(val), true
 	case float64:
 		return val, true
+	case types.Unofloat:
+		return float64(val), true
 	}
 	return 0, false
 }
@@ -128,7 +130,7 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 			return nil
 		}
 		return NewRuntimeError(line, col, "type mismatch: expected uint, got %T", value)
-	case types.Float, types.UnoFloat:
+	case types.Float:
 		if _, ok := value.(float64); ok {
 			return nil
 		}
@@ -138,11 +140,21 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 		if _, ok := value.(uint64); ok {
 			return nil
 		}
-		expectedTypeStr := "float"
-		if expectedType == types.UnoFloat {
-			expectedTypeStr = "unofloat"
+		return NewRuntimeError(line, col, "type mismatch: expected float, got %T", value)
+	case types.UnitFloat:
+		if _, ok := value.(float64); ok {
+			return nil
 		}
-		return NewRuntimeError(line, col, "type mismatch: expected %s, got %T", expectedTypeStr, value)
+		if _, ok := value.(int64); ok {
+			return nil
+		}
+		if _, ok := value.(uint64); ok {
+			return nil
+		}
+		if _, ok := value.(types.Unofloat); ok {
+			return nil
+		}
+		return NewRuntimeError(line, col, "type mismatch: expected unofloat, got %T", value)
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
 			return NewRuntimeError(line, col, "type mismatch: expected bool, got %T", value)
@@ -171,7 +183,7 @@ func castToType(expectedType types.VarType, value any) any {
 		if value, ok := value.(uint64); ok {
 			return float64(value)
 		}
-	case types.UnoFloat:
+	case types.UnitFloat:
 		if value, ok := value.(int64); ok {
 			return clampUnofloat(float64(value))
 		}
@@ -192,6 +204,6 @@ func castToType(expectedType types.VarType, value any) any {
 	return value
 }
 
-func clampUnofloat(value float64) float64 {
-	return math.Max(0.0, math.Min(1.0, value))
+func clampUnofloat(value float64) types.Unofloat {
+	return types.Unofloat(math.Max(0.0, math.Min(1.0, value)))
 }
