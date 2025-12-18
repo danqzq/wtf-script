@@ -137,7 +137,11 @@ func (l *Lexer) acceptRun(valid string) {
 }
 
 func (l *Lexer) errorf(formattedMsg string, args ...any) stateFn {
-	err := NewLexicalError(l.line, l.column, formattedMsg, args...)
+	currentPos := &Position{
+		Line:   l.line,
+		Column: l.column,
+	}
+	err := NewLexicalError(currentPos, formattedMsg, args...)
 	l.errors = append(l.errors, err)
 
 	l.tokens <- Token{

@@ -310,7 +310,7 @@ func (p *Parser) parsePrefixExpression() Expression {
 func (p *Parser) parseInfixExpression(left Expression) Expression {
 	expression := &BinaryExpr{
 		Token:    p.curToken,
-		Operator: p.curToken.Literal,
+		Operator: p.curToken.Type,
 		Left:     left,
 	}
 

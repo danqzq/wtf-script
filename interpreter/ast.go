@@ -131,7 +131,7 @@ func (es *ExprStmt) String() string {
 type BinaryExpr struct {
 	Token    Token // The operator token, e.g. +
 	Left     Expression
-	Operator string
+	Operator TokenType
 	Right    Expression
 }
 
@@ -142,7 +142,7 @@ func (bin *BinaryExpr) String() string {
 
 	out.WriteString("(")
 	out.WriteString(bin.Left.String())
-	out.WriteString(" " + bin.Operator + " ")
+	out.WriteString(" " + string(bin.Operator) + " ")
 	out.WriteString(bin.Right.String())
 	out.WriteString(")")
 

@@ -5,59 +5,67 @@ import (
 )
 
 type ParserError struct {
-	Line   int
-	Column int
-	Msg    string
+	*Position
+	Msg string
 }
 
 func (e *ParserError) Error() string {
 	return PrintError(e.Line, e.Column, "parser", e.Msg)
 }
 
-func NewParserError(line, col int, format string, args ...any) *ParserError {
+func NewParserError(pos *Position, format string, args ...any) *ParserError {
 	return &ParserError{
-		Line:   line,
-		Column: col,
-		Msg:    fmt.Sprintf(format, args...),
+		Position: pos,
+		Msg:      fmt.Sprintf(format, args...),
 	}
 }
 
 func NewIllegalTokenError(node *Token) *ParserError {
 	return &ParserError{
-		Line:   node.Line,
-		Column: node.Column,
-		Msg:    fmt.Sprintf("Illegal token: %s", node.Literal),
+		Position: &Position{
+			Line:   node.Line,
+			Column: node.Column,
+		},
+		Msg: fmt.Sprintf("Illegal token: %s", node.Literal),
 	}
 }
 
 func NewExpectedTokenError(node *Token, expected TokenType) *ParserError {
 	return &ParserError{
-		Line:   node.Line,
-		Column: node.Column,
-		Msg:    fmt.Sprintf("expected next token to be %s, got %s instead", expected, node.Type),
+		Position: &Position{
+			Line:   node.Line,
+			Column: node.Column,
+		},
+		Msg: fmt.Sprintf("expected next token to be %s, got %s instead", expected, node.Type),
 	}
 }
 
 func NewNoPrefixParseFnError(node *Token, t TokenType) *ParserError {
 	return &ParserError{
-		Line:   node.Line,
-		Column: node.Column,
-		Msg:    fmt.Sprintf("no prefix parse function for %s found", t),
+		Position: &Position{
+			Line:   node.Line,
+			Column: node.Column,
+		},
+		Msg: fmt.Sprintf("no prefix parse function for %s found", t),
 	}
 }
 
 func NewIntegerParseError(node *Token) *ParserError {
 	return &ParserError{
-		Line:   node.Line,
-		Column: node.Column,
-		Msg:    fmt.Sprintf("could not parse %q as integer", node.Literal),
+		Position: &Position{
+			Line:   node.Line,
+			Column: node.Column,
+		},
+		Msg: fmt.Sprintf("could not parse %q as integer", node.Literal),
 	}
 }
 
 func NewFloatParseError(node *Token) *ParserError {
 	return &ParserError{
-		Line:   node.Line,
-		Column: node.Column,
-		Msg:    fmt.Sprintf("could not parse %q as float", node.Literal),
+		Position: &Position{
+			Line:   node.Line,
+			Column: node.Column,
+		},
+		Msg: fmt.Sprintf("could not parse %q as float", node.Literal),
 	}
 }
