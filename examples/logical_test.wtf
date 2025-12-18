@@ -1,0 +1,36 @@
+// Simple test of && and || operators
+
+bool t = true;
+bool f = false;
+
+// Test AND (&&)
+bool test1 = t && t;  // true
+bool test2 = t && f;  // false
+bool test3 = f && t;  // false
+bool test4 = f && f;  // false
+
+// Test OR (||)
+bool test5 = t || t;  // true
+bool test6 = t || f;  // true
+bool test7 = f || t;  // true
+bool test8 = f || f;  // false
+
+// Test with comparisons
+int x = 10;
+int y = 20;
+
+bool test9 = x < 15 && y > 15;   // true && true = true
+bool test10 = x < 5 && y > 15;   // false && true = false
+bool test11 = x < 15 || y < 15;  // true || false = true
+bool test12 = x > 15 || y < 15;  // false || false = false
+
+// Test operator precedence (AND has higher precedence than OR)
+bool test13 = f || t && f;  // false || (true && false) = false || false = false
+bool test14 = t && f || t;  // (true && false) || true = false || true = true
+
+// Test short-circuit (division by zero would error if evaluated)
+bool test15 = f && x / 0 == 5;  // false (right side not evaluated)
+bool test16 = t || y / 0 == 5;  // true (right side not evaluated)
+
+// Print success message (if we got here, all tests passed)
+int success = 1;

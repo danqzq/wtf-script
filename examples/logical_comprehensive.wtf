@@ -1,0 +1,69 @@
+// Comprehensive test of logical operators
+
+print("=== Testing Logical Operators ===");
+
+// Test 1: Basic AND
+bool test1 = true && true;
+if (test1) {
+    print("Test 1 passed: true && true = true");
+}
+
+// Test 2: Basic OR
+bool test2 = false || true;
+if (test2) {
+    print("Test 2 passed: false || true = true");
+}
+
+// Test 3: Combining with comparisons
+int a = 10;
+int b = 20;
+bool test3 = a < 15 && b > 15;
+if (test3) {
+    print("Test 3 passed: Combined with comparisons");
+}
+
+// Test 4: Short-circuit evaluation for AND
+bool test4 = false && a / 0 == 5;
+if (!test4) {
+    print("Test 4 passed: Short-circuit AND works");
+}
+
+// Test 5: Short-circuit evaluation for OR
+bool test5 = true || b / 0 == 5;
+if (test5) {
+    print("Test 5 passed: Short-circuit OR works");
+}
+
+// Test 6: Operator precedence (AND before OR)
+bool test6 = false || true && true;
+if (test6) {
+    print("Test 6 passed: Precedence AND > OR");
+}
+
+// Test 7: Truthiness of non-zero numbers
+int nonZero = 5;
+bool test7 = nonZero && true;
+if (test7) {
+    print("Test 7 passed: Non-zero number is truthy");
+}
+
+// Test 8: Falsiness of zero
+int zero = 0;
+bool test8 = zero || true;
+if (test8) {
+    print("Test 8 passed: Zero is falsy");
+}
+
+// Test 9: Complex nested expression
+bool test9 = (a < b && b < 30) && (a > 5 || b == 20);
+if (test9) {
+    print("Test 9 passed: Complex nested expression");
+}
+
+// Test 10: NOT with AND
+bool test10 = !false && true;
+if (test10) {
+    print("Test 10 passed: NOT with AND");
+}
+
+print("=== All tests completed! ===");

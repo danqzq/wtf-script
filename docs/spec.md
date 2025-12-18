@@ -105,7 +105,184 @@ print(b + a); // Result: 15 (int)
 ```
 ---
 
-## 🚫 Error Handling
+## � Comparison Operators
+
+Supported comparison operators:
+
+* Equal: `==`
+* Not equal: `!=`
+* Less than: `<`
+* Less than or equal: `<=`
+* Greater than: `>`
+* Greater than or equal: `>=`
+* Logical NOT: `!`
+
+Comparisons return a `bool` value and work with all numeric types (`int`, `uint`, `float`, `unofloat`), `string`, and `bool`.
+
+Example:
+
+```wtf
+int x = 10;
+int y = 5;
+
+bool isGreater = x > y;  // true
+bool isEqual = x == y;    // false
+
+if (x > y) {
+    print("x is greater than y");
+}
+```
+
+---
+
+## 🧠 Logical Operators
+
+WTFScript supports logical operators for combining boolean expressions:
+
+* Logical AND: `&&`
+* Logical OR: `||`
+* Logical NOT: `!`
+
+### Short-Circuit Evaluation
+
+Both `&&` and `||` use **short-circuit evaluation**:
+- `&&`: If the left operand is false, the right operand is **not evaluated**
+- `||`: If the left operand is true, the right operand is **not evaluated**
+
+This prevents unnecessary computation and potential errors.
+
+### Operator Precedence
+
+From highest to lowest:
+1. `!` (NOT)
+2. Comparison operators (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+3. `&&` (AND)
+4. `||` (OR)
+
+### Truthiness
+
+When non-boolean values are used with logical operators, they are converted to boolean:
+- **Truthy**: Non-zero numbers, non-empty strings
+- **Falsy**: `0`, `0.0`, empty string `""`, `false`
+
+Example:
+
+```wtf
+bool a = true;
+bool b = false;
+
+// Basic logical operations
+bool and_result = a && b;  // false
+bool or_result = a || b;   // true
+bool not_result = !a;      // false
+
+// With comparisons
+int x = 10;
+int y = 20;
+int z = 15;
+
+bool inRange = x < z && z < y;  // true (15 is between 10 and 20)
+
+// Complex expressions with precedence
+bool complex = true || false && false;  // true (evaluated as: true || (false && false))
+
+// Short-circuit prevents errors
+bool safe = false && x / 0 == 0;  // false (division never happens)
+
+// Using numeric truthiness
+int num = 5;
+bool truthy = num && true;  // true (5 is truthy)
+```
+
+---
+
+## 🔀 Control Flow
+
+### If Statements
+
+WTFScript supports standard conditional statements with C-like syntax:
+
+```wtf
+if (condition) {
+    // code block
+}
+```
+
+### Else If and Else
+
+Chain multiple conditions:
+
+```wtf
+int score = 85;
+
+if (score >= 90) {
+    print("Grade: A");
+} else if (score >= 80) {
+    print("Grade: B");
+} else if (score >= 70) {
+    print("Grade: C");
+} else {
+    print("Grade: F");
+}
+```
+
+### 🎲 Random Conditionals: `ifrand`
+
+WTFScript introduces `ifrand` - a conditional statement with **probabilistic execution**:
+
+**Default 50% probability:**
+```wtf
+ifrand {
+    print("This has a 50% chance of executing");
+}
+```
+
+**Custom probability (0.0 to 1.0):**
+```wtf
+ifrand(0.8) {
+    print("This has an 80% chance of executing");
+}
+
+ifrand(0.1) {
+    print("This has a 10% chance of executing");
+}
+```
+
+**With else blocks:**
+```wtf
+ifrand(0.5) {
+    print("True branch");
+} else {
+    print("False branch");
+}
+```
+
+**Chaining ifrand:**
+```wtf
+ifrand(0.3) {
+    print("30% chance");
+} else ifrand(0.6) {
+    print("~42% chance (60% of remaining 70%)");
+} else {
+    print("~28% chance");
+}
+```
+
+**Mixing regular if and ifrand:**
+```wtf
+int x = 10;
+
+if (x > 5) {
+    print("x is greater than 5");
+    ifrand(0.7) {
+        print("And we got lucky! (70% chance)");
+    }
+}
+```
+
+---
+
+## �🚫 Error Handling
 
 * Division by zero produces a runtime error.
 * Assigning incompatible types (e.g. `uint x = -5;`) produces a parse or evaluation error.
@@ -117,7 +294,6 @@ print(b + a); // Result: 15 (int)
 
 ## 🔮 Future Planned Features
 
-* **Conditionals:** `if`, `else`, `ifrand` (randomized conditionals)
 * **Loops:** `while`, `for` (with random iterations)
 * **User-defined functions:** with parameters and return values
 * **Arrays and maps**

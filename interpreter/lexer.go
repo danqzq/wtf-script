@@ -175,6 +175,20 @@ func lexStart(l *Lexer) stateFn {
 			l.emit(MINUS)
 		case ch == '*':
 			l.emit(ASTERISK)
+		case ch == '&':
+			if l.peek() == '&' {
+				l.next()
+				l.emit(AND)
+			} else {
+				return l.errorf("unexpected character: %c", ch)
+			}
+		case ch == '|':
+			if l.peek() == '|' {
+				l.next()
+				l.emit(OR)
+			} else {
+				return l.errorf("unexpected character: %c", ch)
+			}
 		case ch == '=':
 			if l.peek() == '=' {
 				l.next()

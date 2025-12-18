@@ -287,6 +287,33 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 }
 
 func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
+	// Handle logical operators with short-circuit evaluation
+	if node.Operator == string(AND) || node.Operator == string(OR) {
+		left, err := i.Evaluate(node.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		leftBool := i.isTruthy(left)
+
+		// Short-circuit: don't evaluate right if we already know the result
+		if node.Operator == string(AND) && !leftBool {
+			return false, nil
+		}
+		if node.Operator == string(OR) && leftBool {
+			return true, nil
+		}
+
+		// Only evaluate right side if necessary
+		right, err := i.Evaluate(node.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		return i.isTruthy(right), nil
+	}
+
+	// For all other operators, evaluate both sides
 	left, err := i.Evaluate(node.Left)
 	if err != nil {
 		return nil, err
@@ -301,7 +328,8 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 
 func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, error) {
 	// Handle comparison operators separately
-	if op == "==" || op == "!=" || op == "<" || op == "<=" || op == ">" || op == ">=" {
+	if op == string(EQ) || op == string(NEQ) || op == string(LT) ||
+		op == string(LTE) || op == string(GT) || op == string(GTE) {
 		return i.applyComparisonOp(op, left, right, line, col)
 	}
 
@@ -495,7 +523,26 @@ func (i *Interpreter) applyComparisonOp(op string, left, right any, line, col in
 
 	return nil, NewUnknownOperatorError(line, col, op, left, right)
 }
-
+func (i *Interpreter) isTruthy(val any) bool {
+	switch v := val.(type) {
+	case bool:
+		return v
+	case int64:
+		return v != 0
+	case uint64:
+		return v != 0
+	case float64:
+		return v != 0.0
+	case types.Unofloat:
+		return float64(v) != 0.0
+	case string:
+		return len(v) > 0
+	case nil:
+		return false
+	default:
+		return true
+	}
+}
 func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, error) {
 	switch l := left.(type) {
 	case int64:

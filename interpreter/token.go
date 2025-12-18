@@ -40,6 +40,10 @@ const (
 	GTE  TokenType = ">="
 	BANG TokenType = "!"
 
+	// Logical operators
+	AND TokenType = "&&"
+	OR  TokenType = "||"
+
 	// Delimiters
 	SEMICOLON TokenType = ";"
 	COMMA     TokenType = ","
