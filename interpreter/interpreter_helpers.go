@@ -109,12 +109,31 @@ func checkRange[T int64 | float64](min, max T, pos *Position) error {
 	return nil
 }
 
+func getTypeString(value any) string {
+	switch value.(type) {
+	case int64:
+		return "int"
+	case uint64:
+		return "uint"
+	case float64:
+		return "float"
+	case types.Unofloat:
+		return "unofloat"
+	case bool:
+		return "bool"
+	case string:
+		return "string"
+	default:
+		return "unknown"
+	}
+}
+
 func defaultTypeCompatibility(expectedType *types.VarType, value any, pos *Position) error {
 	switch value.(type) {
-	case int64, uint64, float64:
+	case int64, uint64, float64, types.Unofloat:
 		return nil
 	}
-	return NewRuntimeError(pos, "type mistmatch: expected %s, got %T", expectedType.String(), value)
+	return NewRuntimeError(pos, "type mistmatch: expected %s, got %s", expectedType.String(), getTypeString(value))
 }
 
 func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value any, pos *Position) error {
@@ -126,19 +145,7 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 	case types.Float:
 		return defaultTypeCompatibility(&expectedType, value, pos)
 	case types.UnitFloat:
-		if _, ok := value.(float64); ok {
-			return nil
-		}
-		if _, ok := value.(int64); ok {
-			return nil
-		}
-		if _, ok := value.(uint64); ok {
-			return nil
-		}
-		if _, ok := value.(types.Unofloat); ok {
-			return nil
-		}
-		return NewRuntimeError(pos, "type mismatch: expected unofloat, got %T", value)
+		return defaultTypeCompatibility(&expectedType, value, pos)
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
 			return NewRuntimeError(pos, "type mismatch: expected bool, got %T", value)
