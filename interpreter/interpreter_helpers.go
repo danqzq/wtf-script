@@ -27,17 +27,21 @@ func varTypeFromToken(t TokenType) int {
 func (i *Interpreter) randomValue(t TokenType) any {
 	switch t {
 	case TYPE_INT:
-		return int64(i.Rand.Intn(2000) - 1000) // Default range -1000 to 1000
+		rangeSize := i.Config.Int.Max - i.Config.Int.Min
+		return i.Config.Int.Min + i.Rand.Int63n(rangeSize) + 1 // +1 to include Max
 	case TYPE_UINT:
-		return uint64(i.Rand.Intn(2000))
+		rangeSize := i.Config.Uint.Max - i.Config.Uint.Min
+		return i.Config.Uint.Min + uint64(i.Rand.Int63n(int64(rangeSize))) + 1 // +1 to include Max
 	case TYPE_BOOL:
 		return i.Rand.Intn(2) == 0
 	case TYPE_FLOAT:
-		return i.Rand.Float64() * 1000.0
+		rangeSize := i.Config.Float.Max - i.Config.Float.Min
+		return i.Config.Float.Min + i.Rand.Float64()*rangeSize
 	case TYPE_UNOFLOAT:
-		return types.Unofloat(i.Rand.Float64())
+		rangeSize := i.Config.Unofloat.Max - i.Config.Unofloat.Min
+		return types.Unofloat(i.Config.Unofloat.Min + i.Rand.Float64()*rangeSize)
 	case TYPE_STRING:
-		return i.GenerateRandomString(i.Config.RandomStringLength, i.Config.RandomStringCharset)
+		return i.GenerateRandomString(int(i.Config.Length.Min), i.Config.Charset)
 	}
 	return nil
 }

@@ -8,14 +8,14 @@ WTFScript is a minimal, chaos-inspired scripting language where **randomization 
 
 ## 🔤 Supported Types
 
-| Type        | Description                              | Default Range / Behavior                  |
-|-------------|------------------------------------------|-------------------------------------------|
-| `int`       | 64-bit signed integer                    | Random between -1000 and 1000 (inclusive)            |
-| [`uint`](uint.md)      | 64-bit unsigned integer                  | Random between 0 and 2000 (inclusive)            |
-| `float`     | 64-bit float                             | Random between -1000.0 and 1000.0 (inclusive)            |
-| [`unofloat`](unofloat.md)  | Unit float (strictly between 0 and 1)            | Random between 0.0 and 1.0 (inclusive)                |
-| `string`    | Random alphanumeric string               | Random 10 characters long, alphanumeric |
-| `bool`      | Random true or false                     | Random true or false (50% chance)         |
+| Type                      | Description                            | Default Range / Behavior                                           |
+|---------------------------|----------------------------------------|--------------------------------------------------------------------|
+| `int`                     | 64-bit signed integer                  | Random between -1000 and 1000<br>[-1000; 1000]                     |
+| [`uint`](uint.md)         | 64-bit unsigned integer                | Random between 0 and 2000<br>[0; 2000]                             |
+| `float`                   | 64-bit float                           | Random between -1000.0 and 1000.0 (exclusive)<br>[-1000.0; 1000.0) |
+| [`unofloat`](unofloat.md) | Unit float (strictly between 0 and 1)  | Random between 0.0 and 1.0 (exclusive)<br>[0.0; 1.0)               |
+| `string`                  | Random alphanumeric string             | Random 10 characters long, consisting of alphanumeric characters   |
+| `bool`                    | Random true or false                   | Random true or false (50% chance)                                  |
 
 > Note: The default range is configurable by adjusting constant limits set in [`config/config.go`](../config/config.go).
 

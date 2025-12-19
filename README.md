@@ -64,6 +64,44 @@ go build -o wtf ./cmd/wtf/main.go
 
 ---
 
+## ⚙️ Configuration
+
+WTFScript supports custom configuration via JSON files to define default random ranges for all types.
+
+### Usage
+
+```bash
+./wtf --config config.json script.wtf
+```
+
+### Configuration Options
+
+Create a `config.json` file:
+
+```json
+{
+  "int": {
+    "min": -100,
+    "max": 100
+  },
+  "float": {
+    "min": -50.0,
+    "max": 50.0
+  },
+}
+```
+
+**Default values** (when no config is provided):
+- `int`: -1000 to 1000
+- `uint`: 0 to 2000
+- `float`: -1000.0 to 1000.0
+- `unofloat`: 0.0 to 1.0
+- String length: 10 characters
+
+> See [config.json](config.json) for a complete example configuration file.
+
+---
+
 ## ✨ Example
 
 ```wtf

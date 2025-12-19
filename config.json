@@ -1,0 +1,23 @@
+{
+    "int": {
+        "min": -1000,
+        "max": 1000
+    },
+    "uint": {
+        "min": 0,
+        "max": 2000
+    },
+    "float": {
+        "min": -1000.0,
+        "max": 1000.0
+    },
+    "unofloat": {
+        "min": 0.0,
+        "max": 1.0
+    },
+    "charset": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    "length": {
+        "min": 10,
+        "max": 10
+    }
+}
