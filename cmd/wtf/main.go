@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"wtf-script/config"
 	"wtf-script/interpreter"
@@ -13,15 +12,15 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Println("Usage: wtf [--config <config.json>] <file.wtf>")
-		os.Exit(1)
+		interpreter.LogError("Usage: wtf [--config <config.json>] <file.wtf>")
+		return
 	}
 
 	filename := flag.Arg(0)
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		fmt.Println("Error reading file:", err)
-		os.Exit(1)
+		interpreter.LogError("Error reading file: %v", err)
+		return
 	}
 
 	// Load config if provided
@@ -29,8 +28,8 @@ func main() {
 	if *configFile != "" {
 		cfg, err = config.LoadConfigFromFile(*configFile)
 		if err != nil {
-			fmt.Println("Error loading config:", err)
-			os.Exit(1)
+			interpreter.LogError("Error loading config: %v", err)
+			return
 		}
 	}
 

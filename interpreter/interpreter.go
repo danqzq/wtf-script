@@ -33,6 +33,10 @@ func (i *Interpreter) SetSeed(seed int64) {
 	i.Rand.Seed(seed)
 }
 
+func (i *Interpreter) LogError(format string, args ...any) {
+	LogError(format, args...)
+}
+
 func NewInterpreter(cfg *config.Config) *Interpreter {
 	if cfg == nil {
 		cfg = &config.DefaultConfig
