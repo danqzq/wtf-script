@@ -17,7 +17,7 @@ WTFScript is a minimal, chaos-inspired scripting language where **randomization 
 | `string`                  | Random alphanumeric string             | Random 10 characters long, consisting of alphanumeric characters   |
 | `bool`                    | Random true or false                   | Random true or false (50% chance)                                  |
 
-> Note: The default range is configurable by adjusting constant limits set in [`config/config.go`](../config/config.go).
+> Note: The default range is configurable by creating a `config.json` file in the working directory (see [here](../README.md#configuration-options) for details).
 
 ---
 
