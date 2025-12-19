@@ -508,11 +508,11 @@ func TestInterpreter_UnofloatBasic(t *testing.T) {
 		t.Fatal("variable 'x' not found")
 	}
 
-	if v.Type != types.UnitFloat {
+	if v.Type != types.Unofloat {
 		t.Errorf("expected type UnitFloat, got %v", v.Type)
 	}
 
-	val, ok := v.Value.(types.Unofloat)
+	val, ok := v.Value.(types.UnofloatType)
 	if !ok {
 		t.Fatalf("value is not Unofloat: %T", v.Value)
 	}
@@ -541,7 +541,7 @@ func TestInterpreter_UnofloatClamping(t *testing.T) {
 		t.Fatal("variable 'result' not found")
 	}
 
-	val, ok := v.Value.(types.Unofloat)
+	val, ok := v.Value.(types.UnofloatType)
 	if !ok {
 		t.Fatalf("value is not Unofloat: %v", v.Value)
 	}
@@ -582,7 +582,7 @@ func TestInterpreter_UnofloatArithmetic(t *testing.T) {
 				t.Fatalf("variable '%s' not found", tt.name)
 			}
 
-			val, ok := v.Value.(types.Unofloat)
+			val, ok := v.Value.(types.UnofloatType)
 			if !ok {
 				t.Fatalf("value is not Unofloat: %T", v.Value)
 			}

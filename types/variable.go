@@ -8,13 +8,13 @@ type Variable struct {
 type VarType int
 
 // Distinct type for unofloat to differentiate from float64
-type Unofloat float64
+type UnofloatType float64
 
 const (
 	Int VarType = iota
 	Uint
 	Float
-	UnitFloat // unofloat
+	Unofloat // unofloat
 	Bool
 	String
 	Unknown
@@ -28,7 +28,7 @@ func (t VarType) String() string {
 		return "uint"
 	case Float:
 		return "float"
-	case UnitFloat:
+	case Unofloat:
 		return "unofloat"
 	case Bool:
 		return "bool"

@@ -14,7 +14,7 @@ func varTypeFromToken(t TokenType) int {
 	case TYPE_FLOAT:
 		return int(types.Float)
 	case TYPE_UNOFLOAT:
-		return int(types.UnitFloat)
+		return int(types.Unofloat)
 	case TYPE_BOOL:
 		return int(types.Bool)
 	case TYPE_STRING:
@@ -28,18 +28,18 @@ func (i *Interpreter) randomValue(t TokenType) any {
 	switch t {
 	case TYPE_INT:
 		rangeSize := i.Config.Int.Max - i.Config.Int.Min
-		return i.Config.Int.Min + i.Rand.Int63n(rangeSize) + 1 // +1 to include Max
+		return i.Config.Int.Min + i.Rand.Int63n(rangeSize) + RangeInclusiveOffset
 	case TYPE_UINT:
 		rangeSize := i.Config.Uint.Max - i.Config.Uint.Min
-		return i.Config.Uint.Min + uint64(i.Rand.Int63n(int64(rangeSize))) + 1 // +1 to include Max
+		return i.Config.Uint.Min + uint64(i.Rand.Int63n(int64(rangeSize))) + RangeInclusiveOffset
 	case TYPE_BOOL:
-		return i.Rand.Intn(2) == 0
+		return i.Rand.Intn(RandomBoolChoices) == 0
 	case TYPE_FLOAT:
 		rangeSize := i.Config.Float.Max - i.Config.Float.Min
 		return i.Config.Float.Min + i.Rand.Float64()*rangeSize
 	case TYPE_UNOFLOAT:
 		rangeSize := i.Config.Unofloat.Max - i.Config.Unofloat.Min
-		return types.Unofloat(i.Config.Unofloat.Min + i.Rand.Float64()*rangeSize)
+		return types.UnofloatType(i.Config.Unofloat.Min + i.Rand.Float64()*rangeSize)
 	case TYPE_STRING:
 		return i.GenerateRandomString(int(i.Config.Length.Min), i.Config.Charset)
 	}
@@ -97,7 +97,7 @@ func toFloat64(v any) (float64, bool) {
 		return float64(val), true
 	case float64:
 		return val, true
-	case types.Unofloat:
+	case types.UnofloatType:
 		return float64(val), true
 	}
 	return 0, false
@@ -121,7 +121,7 @@ func getTypeString(value any) string {
 		return "uint"
 	case float64:
 		return "float"
-	case types.Unofloat:
+	case types.UnofloatType:
 		return "unofloat"
 	case bool:
 		return "bool"
@@ -134,7 +134,7 @@ func getTypeString(value any) string {
 
 func defaultTypeCompatibility(expectedType *types.VarType, value any, pos *Position) error {
 	switch value.(type) {
-	case int64, uint64, float64, types.Unofloat:
+	case int64, uint64, float64, types.UnofloatType:
 		return nil
 	}
 	return NewRuntimeError(pos, "type mistmatch: expected %s, got %s", expectedType.String(), getTypeString(value))
@@ -148,7 +148,7 @@ func (i *Interpreter) checkTypeCompatibility(expectedType types.VarType, value a
 		return defaultTypeCompatibility(&expectedType, value, pos)
 	case types.Float:
 		return defaultTypeCompatibility(&expectedType, value, pos)
-	case types.UnitFloat:
+	case types.Unofloat:
 		return defaultTypeCompatibility(&expectedType, value, pos)
 	case types.Bool:
 		if _, ok := value.(bool); !ok {
@@ -178,7 +178,7 @@ func castToType(expectedType types.VarType, value any) any {
 		if value, ok := value.(uint64); ok {
 			return float64(value)
 		}
-	case types.UnitFloat:
+	case types.Unofloat:
 		if value, ok := value.(int64); ok {
 			return clampUnofloat(float64(value))
 		}
@@ -199,6 +199,6 @@ func castToType(expectedType types.VarType, value any) any {
 	return value
 }
 
-func clampUnofloat(value float64) types.Unofloat {
-	return types.Unofloat(math.Max(0.0, math.Min(1.0, value)))
+func clampUnofloat(value float64) types.UnofloatType {
+	return types.UnofloatType(math.Max(UnofloatMin, math.Min(UnofloatMax, value)))
 }

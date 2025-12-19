@@ -61,14 +61,14 @@ func (i *Interpreter) Execute(code string) {
 
 	if len(p.Errors()) > 0 {
 		for _, msg := range p.Errors() {
-			fmt.Printf("\033[31m%s\033[0m\n", msg)
+			LogError("%s", msg)
 		}
 		return
 	}
 
 	_, err := i.Evaluate(program)
 	if err != nil {
-		fmt.Printf("\033[31m%s\033[0m\n", err)
+		LogError("%s", err)
 	}
 }
 
@@ -154,7 +154,7 @@ func (i *Interpreter) validateUnofloatAssignment(value any, shouldValidateStrict
 	if val, ok := value.(float64); ok && shouldValidateStrict && (val < 0 || val > 1) {
 		return nil, NewInvalidUnofloatAssignmentError(pos, val)
 	}
-	if val, ok := value.(types.Unofloat); ok && shouldValidateStrict && (float64(val) < 0 || float64(val) > 1) {
+	if val, ok := value.(types.UnofloatType); ok && shouldValidateStrict && (float64(val) < 0 || float64(val) > 1) {
 		return nil, NewInvalidUnofloatAssignmentError(pos, float64(val))
 	}
 	if val, ok := value.(int64); ok && (val < 0 || val > 1) {
@@ -218,7 +218,7 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		// Special handling for unofloat and uint assignment validation
 		pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
 		switch expectedType {
-		case types.UnitFloat:
+		case types.Unofloat:
 			validatedVal, err := i.validateUnofloatAssignment(evaluated, shouldValidateStrict, pos)
 			if err != nil {
 				return nil, err
@@ -267,7 +267,7 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 
 		// Special handling for unofloat and uint assignment validation
 		switch v.Type {
-		case types.UnitFloat:
+		case types.Unofloat:
 			validatedVal, err := i.validateUnofloatAssignment(val, shouldValidateStrict, pos)
 			if err != nil {
 				return nil, err
@@ -370,7 +370,7 @@ func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any
 		r := rightVal.(float64)
 		return defaultApplyOp(op, l, r)
 
-	case types.Unofloat:
+	case types.UnofloatType:
 		r := rightVal.(float64)
 		switch op {
 		case PLUS:
@@ -436,7 +436,7 @@ func (i *Interpreter) applyComparisonOp(op TokenType, left, right any, pos *Posi
 	case float64:
 		r := rightVal.(float64)
 		return defaultComparisonOp(op, l, r)
-	case types.Unofloat:
+	case types.UnofloatType:
 		r := rightVal.(float64)
 		fl := float64(l)
 		return defaultComparisonOp(op, fl, r)
@@ -470,7 +470,7 @@ func (i *Interpreter) isTruthy(val any) bool {
 		return v != 0
 	case float64:
 		return v != 0.0
-	case types.Unofloat:
+	case types.UnofloatType:
 		return float64(v) != 0.0
 	case string:
 		return len(v) > 0
@@ -481,7 +481,7 @@ func (i *Interpreter) isTruthy(val any) bool {
 	}
 }
 
-func coerceHandleRight[T int64 | uint64 | float64 | types.Unofloat](l T, r any, pos *Position) (T, T, error) {
+func coerceHandleRight[T int64 | uint64 | float64 | types.UnofloatType](l T, r any, pos *Position) (T, T, error) {
 	switch rv := r.(type) {
 	case int64:
 		return l, T(rv), nil
@@ -489,7 +489,7 @@ func coerceHandleRight[T int64 | uint64 | float64 | types.Unofloat](l T, r any, 
 		return l, T(rv), nil
 	case float64:
 		return l, T(rv), nil
-	case types.Unofloat:
+	case types.UnofloatType:
 		return l, T(float64(rv)), nil
 	default:
 		var zero T
@@ -508,10 +508,10 @@ func (i *Interpreter) coerceValues(left, right any, pos *Position) (any, any, er
 	case float64:
 		// Left is Float: Coerce Right to Float (FCFS)
 		return coerceHandleRight(l, right, pos)
-	case types.Unofloat:
+	case types.UnofloatType:
 		// Left is Unofloat: Coerce Right to Float, keep left as Unofloat (FCFS)
 		switch r := right.(type) {
-		case types.Unofloat:
+		case types.UnofloatType:
 			return l, float64(r), nil
 		case float64:
 			return l, r, nil
@@ -557,7 +557,7 @@ func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
 			return 0 - val, nil
 		case float64:
 			return -val, nil
-		case types.Unofloat:
+		case types.UnofloatType:
 			return -float64(val), nil
 		}
 	case "!":
@@ -625,20 +625,20 @@ func (i *Interpreter) evalIfStmt(node *IfStmt) (any, error) {
 				probability = float64(p)
 			case uint64:
 				probability = float64(p)
-			case types.Unofloat:
+			case types.UnofloatType:
 				probability = float64(p)
 			default:
 				return nil, NewRuntimeError(pos, "ifrand probability must be a number, got %T", probVal)
 			}
 
-			if probability < 0.0 || probability > 1.0 {
+			if probability < UnofloatMin || probability > UnofloatMax {
 				return nil, NewRuntimeError(pos, "ifrand probability must be between 0 and 1, got %f", probability)
 			}
 
 			condition = i.Rand.Float64() < probability
 		} else {
 			// ifrand without probability (default 0.5)
-			condition = i.Rand.Float64() < 0.5
+			condition = i.Rand.Float64() < DefaultIfrandProbability
 		}
 	} else {
 		// Regular if statement
