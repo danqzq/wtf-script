@@ -329,7 +329,7 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 	return i.applyOp(node.Operator, left, right, pos)
 }
 
-func defaultApplyOp[T int64 | uint64 | float64](op TokenType, l, r T) (any, error) {
+func defaultApplyOp[T int64 | uint64 | float64](op TokenType, l, r T, pos *Position) (any, error) {
 	switch op {
 	case PLUS:
 		return l + r, nil
@@ -339,7 +339,7 @@ func defaultApplyOp[T int64 | uint64 | float64](op TokenType, l, r T) (any, erro
 		return l * r, nil
 	case SLASH:
 		if r == 0 {
-			return nil, fmt.Errorf("division by zero")
+			return nil, NewDivisionByZeroError(pos)
 		}
 		return l / r, nil
 	}
@@ -360,15 +360,13 @@ func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any
 	switch l := leftVal.(type) {
 	case int64:
 		r := rightVal.(int64)
-		return defaultApplyOp(op, l, r)
-
+		return defaultApplyOp(op, l, r, pos)
 	case uint64:
 		r := rightVal.(uint64)
-		return defaultApplyOp(op, l, r)
-
+		return defaultApplyOp(op, l, r, pos)
 	case float64:
 		r := rightVal.(float64)
-		return defaultApplyOp(op, l, r)
+		return defaultApplyOp(op, l, r, pos)
 
 	case types.UnofloatType:
 		r := rightVal.(float64)
