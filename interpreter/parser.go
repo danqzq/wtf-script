@@ -192,7 +192,6 @@ func (p *Parser) parseVarStatement() Statement {
 	return stmt
 }
 
-// TODO: check it out again
 func (p *Parser) parseAssignStatement() Statement {
 	stmt := &AssignStmt{Name: &Identifier{Token: p.curToken, Value: p.curToken.Literal}}
 
