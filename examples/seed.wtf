@@ -1,18 +1,16 @@
+// Seed example
+
 // Set seed
 seed(69);
 
-// Variables will have the same values
 int a;
 uint b;
 float c;
 unofloat d;
 bool e;
-
-// By default, strings are filled with random alphanumeric characters
 string f;
 
-// Printing
 print(a, b, c, d, e, f);
 
-// Output should be:
-// -57046920 497296293 -458986227775.553101 0.171729 false kvWBGnwFJfaIRUjl
+// Possible output:
+// -487 1022 -458.986228 0.171729 false wjr3igAr3U 

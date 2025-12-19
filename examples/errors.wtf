@@ -1,18 +1,22 @@
-// Invalid variable declarations
-uint notUnsigned = -1;
-int notInt = 3.14;
-bool b = "";
+// Runtime errors examples (uncomment one at a time to see the errors)
 
-// `String literal must be quoted` error
-string s = Hello World;
+// runtime error: cannot assign -1 to uint: value must be non-negative
+// uint notUnsigned = -1;
 
-// Undeclared variable usage
-y = 1;
-print(x);
-print(y);
+// runtime error: type mismatch: expected bool, got string
+// bool b = "";
 
-// Division by zero
-int z = 10 / 0;
+// runtime error: identifier not found: Hello
+// string s = Hello World;
 
-// Invalid function call
+// runtime error: variable not defined: y
+// y = 1;
+
+// runtime error: identifier not found: x
+// print(x);
+
+// runtime error: division by zero
+// int z = 10 / 0;
+
+// runtime error: function not found: foo
 foo();

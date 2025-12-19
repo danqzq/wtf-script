@@ -1,4 +1,4 @@
-// Comprehensive test of logical operators
+// Collection of logical operator tests for && (AND), || (OR) and ! (NOT)
 
 print("=== Testing Logical Operators ===");
 
