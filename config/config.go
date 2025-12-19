@@ -104,5 +104,12 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("charset cannot be empty")
 	}
 
+	if cfg.StringDefaults.Length.Max <= 0 {
+		return fmt.Errorf("string.length.max (%v) must be positive", cfg.StringDefaults.Length.Max)
+	}
+	if cfg.StringDefaults.Length.Min > cfg.StringDefaults.Length.Max {
+		return fmt.Errorf("string.length.min (%v) must be less than string.length.max (%v)", cfg.StringDefaults.Length.Min, cfg.StringDefaults.Length.Max)
+	}
+
 	return nil
 }
