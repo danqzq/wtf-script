@@ -1,4 +1,4 @@
-// --- Passing Tests (1-15) ---
+// Collection of tests for unsigned integer (uint) type operations
 
 // 1. Basic Uint Declaration
 print("Test 1: Basic Declaration");

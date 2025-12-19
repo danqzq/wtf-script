@@ -5,24 +5,37 @@ import (
 	"wtf-script/types"
 )
 
+const (
+	PRINT  = "print"
+	SEED   = "seed"
+	TYPEOF = "typeof"
+)
+
 func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
-	register("print", func(args []interface{}, i types.IInterpreter) any {
+	register(PRINT, func(args []any, i types.IInterpreter) any {
 		if len(args) < 1 {
-			fmt.Println("print expects at least 1 argument")
+			i.LogError("print expects at least 1 argument")
 			return nil
 		}
 
 		for _, arg := range args {
-			fmt.Printf("%v ", arg)
+			switch v := arg.(type) {
+			case float64:
+				fmt.Printf("%f ", v)
+			case types.UnofloatType:
+				fmt.Printf("%f ", float64(v))
+			default:
+				fmt.Printf("%v ", arg)
+			}
 		}
 
 		fmt.Println()
 		return nil
 	})
 
-	register("seed", func(args []interface{}, i types.IInterpreter) any {
+	register(SEED, func(args []any, i types.IInterpreter) any {
 		if len(args) != 1 {
-			fmt.Println("seed expects exactly 1 argument")
+			i.LogError("seed expects exactly 1 argument")
 			return nil
 		}
 
@@ -33,13 +46,14 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 		case int64:
 			i.SetSeed(v)
 		default:
-			fmt.Printf("seed expects an integer, got %T\n", args[0])
+			i.LogError("seed expects an integer, got %T", args[0])
 		}
 		return nil
 	})
-	register("typeof", func(args []interface{}, i types.IInterpreter) any {
+
+	register(TYPEOF, func(args []any, i types.IInterpreter) any {
 		if len(args) != 1 {
-			fmt.Println("typeof expects exactly 1 argument")
+			i.LogError("typeof expects exactly 1 argument")
 			return nil
 		}
 
@@ -50,6 +64,8 @@ func RegisterBuiltins(register func(name string, fn types.IBuiltinFunc)) {
 			return "uint"
 		case float64:
 			return "float"
+		case types.UnofloatType:
+			return "unofloat"
 		case string:
 			return "string"
 		case bool:

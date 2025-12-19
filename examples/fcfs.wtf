@@ -1,0 +1,5 @@
+// FCFS (First-Come-First-Served) coercion behavior test via dice roll simulation
+
+unofloat rand;
+int dice = 1 + 6.0 * rand; // Due to FCFS evaluation, this works correctly (int + float + unofloat)
+print("Dice rolls:", dice);

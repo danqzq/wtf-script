@@ -1,4 +1,4 @@
-// --- Passing Tests (1-10) ---
+// Collection of tests for unofloat type operations
 
 // "Test 1: Overflow error"
 // unofloat f1 = 1.1;

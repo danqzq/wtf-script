@@ -1,6 +1,6 @@
 # 🤯 WTFScript
 
-**WTFScript** is a minimal, experimental scripting language with **randomization as a key feature**.  
+**WTFScript** is a minimal, experimental scripting language with **randomization as a key feature**.
 
 > For the record, **WTFScript** stands for "Wild Type Factory Script" – a chaotic playground for exploring types, randomness, and scripting.
 
@@ -64,6 +64,44 @@ go build -o wtf ./cmd/wtf/main.go
 
 ---
 
+## ⚙️ Configuration
+
+WTFScript supports custom configuration via JSON files to define default random ranges for all types.
+
+### Usage
+
+```bash
+./wtf --config config.json script.wtf
+```
+
+### Configuration Options
+
+Create a `config.json` file:
+
+```json
+{
+  "int": {
+    "min": -100,
+    "max": 100
+  },
+  "float": {
+    "min": -50.0,
+    "max": 50.0
+  },
+}
+```
+
+**Default values** (when no config is provided):
+- `int`: -1000 to 1000
+- `uint`: 0 to 2000
+- `float`: -1000.0 to 1000.0
+- `unofloat`: 0.0 to 1.0
+- String length: 10 characters
+
+> See [config.json](config.json) for a complete example configuration file.
+
+---
+
 ## ✨ Example
 
 ```wtf
@@ -106,7 +144,7 @@ See [`docs/spec.md`](docs/spec.md) for the full language specification.
 * [x] MVP with variable declarations and print
 * [x] Arithmetic operations with operator precedence
 * [x] Proper lexer and AST implementation
-* [ ] Branching: `if`, `else` (+ random branching with `ifrand`)
+* [x] Branching: `if`, `else` (+ random branching with `ifrand`)
 * [ ] Loops: `while`, `for` (+ random loops)
 * [ ] Functions with parameters and returns
 * [ ] Arrays and maps

@@ -137,7 +137,11 @@ func (l *Lexer) acceptRun(valid string) {
 }
 
 func (l *Lexer) errorf(formattedMsg string, args ...any) stateFn {
-	err := NewLexicalError(l.line, l.column, formattedMsg, args...)
+	currentPos := &Position{
+		Line:   l.line,
+		Column: l.column,
+	}
+	err := NewLexicalError(currentPos, formattedMsg, args...)
 	l.errors = append(l.errors, err)
 
 	l.tokens <- Token{
@@ -175,8 +179,48 @@ func lexStart(l *Lexer) stateFn {
 			l.emit(MINUS)
 		case ch == '*':
 			l.emit(ASTERISK)
+		case ch == '&':
+			if l.peek() == '&' {
+				l.next()
+				l.emit(AND)
+			} else {
+				return l.errorf("unexpected character: %c", ch)
+			}
+		case ch == '|':
+			if l.peek() == '|' {
+				l.next()
+				l.emit(OR)
+			} else {
+				return l.errorf("unexpected character: %c", ch)
+			}
 		case ch == '=':
-			l.emit(ASSIGN)
+			if l.peek() == '=' {
+				l.next()
+				l.emit(EQ)
+			} else {
+				l.emit(ASSIGN)
+			}
+		case ch == '!':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(NEQ)
+			} else {
+				l.emit(BANG)
+			}
+		case ch == '<':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(LTE)
+			} else {
+				l.emit(LT)
+			}
+		case ch == '>':
+			if l.peek() == '=' {
+				l.next()
+				l.emit(GTE)
+			} else {
+				l.emit(GT)
+			}
 		case ch == ';':
 			l.emit(SEMICOLON)
 		case ch == ',':
@@ -185,6 +229,10 @@ func lexStart(l *Lexer) stateFn {
 			l.emit(LPAREN)
 		case ch == ')':
 			l.emit(RPAREN)
+		case ch == '{':
+			l.emit(LBRACE)
+		case ch == '}':
+			l.emit(RBRACE)
 		case ch == '"':
 			return lexString
 		case isDigit(ch):

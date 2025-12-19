@@ -1,0 +1,112 @@
+// If statement examples
+
+print("===== Basic If Statements =====");
+int age = 25;
+print("Checking age:", age);
+if (age >= 18) {
+    print("You are an adult");
+}
+
+print("\n===== If-Else =====");
+int temperature = 15;
+print("Checking temperature:", temperature);
+if (temperature > 25) {
+    print("It's warm outside");
+} else {
+    print("It's cool outside");
+}
+
+print("\n===== Else-If Chain =====");
+int score = 85;
+print("Checking score:", score);
+if (score >= 90) {
+    print("Grade: A");
+} else if (score >= 80) {
+    print("Grade: B");
+} else if (score >= 70) {
+    print("Grade: C");
+} else {
+    print("Grade: F");
+}
+
+print("\n===== All Comparison Operators =====");
+int a = 10;
+int b = 20;
+print("Comparing a:", a, "and b:", b);
+
+if (a == b) { print("a equals b"); } else { print("a does not equal b"); }
+if (a != b) { print("a not equals b"); } else { print("a equals b"); }
+if (a < b) { print("a less than b"); } else { print("a not less than b"); }
+if (a <= b) { print("a less than or equal to b"); }
+if (a > b) { print("a greater than b"); } else { print("a not greater than b"); }
+if (a >= b) { print("a greater than or equal to b"); } else { print("a not greater or equal to b"); }
+
+print("\n===== Float Comparison =====");
+float pi = 3.14159;
+print("Pi equals:", pi);
+if (pi > 3.0) {
+    print("Pi is greater than 3");
+}
+
+print("\n===== Unofloat Comparison =====");
+unofloat probability = 0.75;
+print("Probability:", probability);
+if (probability > 0.5) {
+    print("Probability is greater than 0.5");
+}
+
+print("\n===== Boolean Comparison =====");
+bool flag = true;
+print("Flag is set to:", flag);
+if (flag == true) {
+    print("Flag is true");
+}
+
+print("\n===== String Comparison =====");
+string name = "Alice";
+if (name == "Alice") {
+    print("Hello Alice!");
+} else if (name == "Bob") {
+    print("Hello Bob!");
+} else {
+    print("Hello stranger!");
+}
+
+print("\n===== ifrand Examples =====");
+print("Running ifrand (default 50%) - 50% chance result will be 1");
+int count = 0;
+ifrand { 
+    count = 1;
+}
+print("Result: ", count);
+
+print("\nRunning ifrand(0.8) - 80% chance result will be 2");
+int count2 = 0;
+ifrand(0.8) {
+    count2 = 1;
+}
+print("Result: ", count2);
+
+print("\n===== Complex Nested If =====");
+int x = 15;
+int y = 20;
+if (x < y) {
+    print("x < y");
+    if (x > 10) {
+        print("  AND x > 10");
+        if (y < 25) {
+            print("    AND y < 25");
+        }
+    }
+}
+
+print("\n===== Variable Assignment in If =====");
+int max;
+if (a > b) {
+    max = a;
+} else {
+    max = b;
+}
+print("max(", a, ",", b, ") =", max);
+
+print("\n===== Done! =====");

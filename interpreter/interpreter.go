@@ -33,6 +33,10 @@ func (i *Interpreter) SetSeed(seed int64) {
 	i.Rand.Seed(seed)
 }
 
+func (i *Interpreter) LogError(format string, args ...any) {
+	LogError(format, args...)
+}
+
 func NewInterpreter(cfg *config.Config) *Interpreter {
 	if cfg == nil {
 		cfg = &config.DefaultConfig
@@ -57,14 +61,14 @@ func (i *Interpreter) Execute(code string) {
 
 	if len(p.Errors()) > 0 {
 		for _, msg := range p.Errors() {
-			fmt.Printf("Parser Error: %s\n", msg)
+			LogError("%s", msg)
 		}
 		return
 	}
 
 	_, err := i.Evaluate(program)
 	if err != nil {
-		fmt.Printf("Runtime Error: %s\n", err)
+		LogError("%s", err)
 	}
 }
 
@@ -81,6 +85,10 @@ func (i *Interpreter) Evaluate(node Node) (any, error) {
 		return i.evalVarDecl(node)
 	case *AssignStmt:
 		return i.evalAssignStmt(node)
+	case *BlockStmt:
+		return i.evalBlockStmt(node)
+	case *IfStmt:
+		return i.evalIfStmt(node)
 
 	// Expressions
 	case *Identifier:
@@ -126,25 +134,55 @@ func (i *Interpreter) evalIdentifier(node *Identifier) (any, error) {
 	return nil, NewIdentifierNotFoundError(node)
 }
 
-func isNegativeLiteral(node Node) bool {
-	switch n := node.(type) {
-	case *UnaryExpr:
-		if n.Operator == "-" {
-			switch n.Right.(type) {
-			case *IntegerLiteral:
-				return true
-			case *FloatLiteral:
-				return true
-			}
-		}
-	}
-	if lit, ok := node.(*IntegerLiteral); ok {
-		return lit.Value < 0
-	}
-	if lit, ok := node.(*FloatLiteral); ok {
-		return lit.Value < 0
+func isLiteral(node Node) bool {
+	switch node.(type) {
+	case *IntegerLiteral, *FloatLiteral, *StringLiteral, *BooleanLiteral:
+		return true
 	}
 	return false
+}
+
+func isIdentifier(node Node) bool {
+	_, ok := node.(*Identifier)
+	return ok
+}
+
+// validateUnofloatAssignment validates assignment to unofloat variables.
+// shouldValidateStrict is true for literals and variables, false for computed expressions.
+// Returns error if validation fails, or modified value for int64->float64 coercion.
+func (i *Interpreter) validateUnofloatAssignment(value any, shouldValidateStrict bool, pos *Position) (any, error) {
+	if val, ok := value.(float64); ok && shouldValidateStrict && (val < 0 || val > 1) {
+		return nil, NewInvalidUnofloatAssignmentError(pos, val)
+	}
+	if val, ok := value.(types.UnofloatType); ok && shouldValidateStrict && (float64(val) < 0 || float64(val) > 1) {
+		return nil, NewInvalidUnofloatAssignmentError(pos, float64(val))
+	}
+	if val, ok := value.(int64); ok && (val < 0 || val > 1) {
+		if shouldValidateStrict {
+			return nil, NewInvalidUnofloatAssignmentError(pos, float64(val))
+		}
+		return float64(val), nil // Coerce for clamping
+	}
+	return value, nil
+}
+
+// validateUintAssignment validates assignment to uint variables.
+// shouldValidateStrict is true for literals and variables, false for computed expressions.
+// Returns error if validation fails, or modified value for negative computed values.
+func (i *Interpreter) validateUintAssignment(value any, shouldValidateStrict bool, pos *Position) (any, error) {
+	if val, ok := value.(int64); ok && val < 0 {
+		if shouldValidateStrict {
+			return nil, NewNegativeUintAssignmentError(pos, val)
+		}
+		return uint64(val), nil // Allow underflow for computed values
+	}
+	if val, ok := value.(float64); ok && val < 0 {
+		if shouldValidateStrict {
+			return nil, NewNegativeUintAssignmentError(pos, int64(val))
+		}
+		return uint64(val), nil // Allow underflow for computed values
+	}
+	return value, nil
 }
 
 func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
@@ -162,7 +200,8 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		var errVal error
-		val, errVal = i.randomValueInRange(node.Type, minVal, maxVal, node.Token.Line, node.Token.Column)
+		pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
+		val, errVal = i.randomValueInRange(node.Type, minVal, maxVal, pos)
 		if errVal != nil {
 			return nil, errVal
 		}
@@ -174,37 +213,26 @@ func (i *Interpreter) evalVarDecl(node *VarDecl) (any, error) {
 		}
 
 		expectedType := types.VarType(varTypeFromToken(node.Type))
-		_, isIdent := node.Value.(*Identifier)
+		shouldValidateStrict := isLiteral(node.Value) || isIdentifier(node.Value)
 
+		// Special handling for unofloat and uint assignment validation
+		pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
 		switch expectedType {
-		// Special handling for Unofloat overflow + underflow
-		case types.UnoFloat:
-			if val, ok := evaluated.(float64); ok && isIdent && (val < 0 || val > 1) {
-				return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
+		case types.Unofloat:
+			validatedVal, err := i.validateUnofloatAssignment(evaluated, shouldValidateStrict, pos)
+			if err != nil {
+				return nil, err
 			}
-			if val, ok := evaluated.(int64); ok && (val < 0 || val > 1) {
-				if isIdent {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
-				}
-				evaluated = float64(val)
-			}
-		// Special handling for Uint underflow vs strict literal check
+			evaluated = validatedVal
 		case types.Uint:
-			if val, ok := evaluated.(int64); ok && val < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", val)
-				}
-				// It's a computed value (e.g. 1 + -10), allow underflow
-				evaluated = uint64(val)
-			} else if val, ok := evaluated.(float64); ok && val < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", val)
-				}
-				evaluated = uint64(val)
+			validatedVal, err := i.validateUintAssignment(evaluated, shouldValidateStrict, pos)
+			if err != nil {
+				return nil, err
 			}
+			evaluated = validatedVal
 		}
 
-		err = i.checkTypeCompatibility(expectedType, evaluated, node.Token.Line, node.Token.Column)
+		err = i.checkTypeCompatibility(expectedType, evaluated, pos)
 		if err != nil {
 			return nil, err
 		}
@@ -229,41 +257,28 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 	}
 
 	if v, ok := i.Variables[node.Name.Value]; ok {
-		err = i.checkTypeCompatibility(v.Type, val, node.Token.Line, node.Token.Column)
+		pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
+		err = i.checkTypeCompatibility(v.Type, val, pos)
 		if err != nil {
 			return nil, err
 		}
 
-		err = i.checkTypeCompatibility(v.Type, val, node.Token.Line, node.Token.Column)
-		if err != nil {
-			return nil, err
-		}
+		shouldValidateStrict := isLiteral(node.Value) || isIdentifier(node.Value)
 
-		_, isIdent := node.Value.(*Identifier)
-
+		// Special handling for unofloat and uint assignment validation
 		switch v.Type {
-		case types.UnoFloat:
-			if val, ok := val.(float64); ok {
-				if isIdent && (val < 0 || val > 1) {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, val)
-				}
+		case types.Unofloat:
+			validatedVal, err := i.validateUnofloatAssignment(val, shouldValidateStrict, pos)
+			if err != nil {
+				return nil, err
 			}
-			if val, ok := val.(int64); ok {
-				if isIdent && (val < 0 || val > 1) {
-					return nil, NewInvalidUnofloatAssignmentError(node.Token.Line, node.Token.Column, float64(val))
-				}
-			}
+			val = validatedVal
 		case types.Uint:
-			if intVal, ok := val.(int64); ok && intVal < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %d to uint", intVal)
-				}
+			validatedVal, err := i.validateUintAssignment(val, shouldValidateStrict, pos)
+			if err != nil {
+				return nil, err
 			}
-			if floatVal, ok := val.(float64); ok && floatVal < 0 {
-				if isNegativeLiteral(node.Value) || isIdent {
-					return nil, NewRuntimeError(node.Token.Line, node.Token.Column, "cannot assign negative value %f to uint", floatVal)
-				}
-			}
+			val = validatedVal
 		}
 
 		v.Value = castToType(v.Type, val)
@@ -274,6 +289,33 @@ func (i *Interpreter) evalAssignStmt(node *AssignStmt) (any, error) {
 }
 
 func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
+	// Handle logical operators with short-circuit evaluation
+	if node.Operator == AND || node.Operator == OR {
+		left, err := i.Evaluate(node.Left)
+		if err != nil {
+			return nil, err
+		}
+
+		leftBool := i.isTruthy(left)
+
+		// Short-circuit: don't evaluate right if we already know the result
+		if node.Operator == AND && !leftBool {
+			return false, nil
+		}
+		if node.Operator == OR && leftBool {
+			return true, nil
+		}
+
+		// Only evaluate right side if necessary
+		right, err := i.Evaluate(node.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		return i.isTruthy(right), nil
+	}
+
+	// For all other operators, evaluate both sides
 	left, err := i.Evaluate(node.Left)
 	if err != nil {
 		return nil, err
@@ -283,11 +325,34 @@ func (i *Interpreter) evalBinaryExpr(node *BinaryExpr) (any, error) {
 		return nil, err
 	}
 
-	return i.applyOp(node.Operator, left, right, node.Token.Line, node.Token.Column)
+	pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
+	return i.applyOp(node.Operator, left, right, pos)
 }
 
-func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, error) {
-	leftVal, rightVal, err := i.coerceValues(left, right, line, col)
+func defaultApplyOp[T int64 | uint64 | float64](op TokenType, l, r T, pos *Position) (any, error) {
+	switch op {
+	case PLUS:
+		return l + r, nil
+	case MINUS:
+		return l - r, nil
+	case ASTERISK:
+		return l * r, nil
+	case SLASH:
+		if r == 0 {
+			return nil, NewDivisionByZeroError(pos)
+		}
+		return l / r, nil
+	}
+	return nil, fmt.Errorf("unknown operator: %s", op)
+}
+
+func (i *Interpreter) applyOp(op TokenType, left, right any, pos *Position) (any, error) {
+	// Handle comparison operators separately
+	if op == EQ || op == NEQ || op == LT || op == LTE || op == GT || op == GTE {
+		return i.applyComparisonOp(op, left, right, pos)
+	}
+
+	leftVal, rightVal, err := i.coerceValues(left, right, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -295,93 +360,157 @@ func (i *Interpreter) applyOp(op string, left, right any, line, col int) (any, e
 	switch l := leftVal.(type) {
 	case int64:
 		r := rightVal.(int64)
-		switch op {
-		case "+":
-			return l + r, nil
-		case "-":
-			return l - r, nil
-		case "*":
-			return l * r, nil
-		case "/":
-			if r == 0 {
-				return nil, NewDivisionByZeroError(line, col)
-			}
-			return l / r, nil
-		}
-
+		return defaultApplyOp(op, l, r, pos)
 	case uint64:
 		r := rightVal.(uint64)
-		switch op {
-		case "+":
-			return l + r, nil
-		case "-":
-			return l - r, nil
-		case "*":
-			return l * r, nil
-		case "/":
-			if r == 0 {
-				return nil, NewDivisionByZeroError(line, col)
-			}
-			return l / r, nil
-		}
-
+		return defaultApplyOp(op, l, r, pos)
 	case float64:
 		r := rightVal.(float64)
+		return defaultApplyOp(op, l, r, pos)
+
+	case types.UnofloatType:
+		r := rightVal.(float64)
 		switch op {
-		case "+":
-			return l + r, nil
-		case "-":
-			return l - r, nil
-		case "*":
-			return l * r, nil
-		case "/":
+		case PLUS:
+			return clampUnofloat(float64(l) + r), nil
+		case MINUS:
+			return clampUnofloat(float64(l) - r), nil
+		case ASTERISK:
+			return clampUnofloat(float64(l) * r), nil
+		case SLASH:
 			if r == 0.0 {
-				return nil, NewDivisionByZeroError(line, col)
+				return nil, NewDivisionByZeroError(pos)
 			}
-			return l / r, nil
+			return clampUnofloat(float64(l) / r), nil
 		}
 
 	case string:
-		if op != "+" {
-			return nil, NewRuntimeError(line, col, "unknown string operator: %s", op)
+		var r string
+		var ok bool
+		if r, ok = rightVal.(string); !ok {
+			return nil, NewTypeMismatchError(pos, left, right)
 		}
-		return l + rightVal.(string), nil
+		switch op {
+		case PLUS:
+			return l + r, nil
+		}
+		return nil, NewRuntimeError(pos, "unknown string operator: %s", op)
 	}
 
-	return nil, NewUnknownOperatorError(line, col, op, left, right)
+	return nil, NewUnknownOperatorError(pos, op, left, right)
 }
 
-func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, error) {
+func defaultComparisonOp[T int64 | uint64 | float64 | string](op TokenType, l, r T) (bool, error) {
+	switch op {
+	case EQ:
+		return l == r, nil
+	case NEQ:
+		return l != r, nil
+	case LT:
+		return l < r, nil
+	case LTE:
+		return l <= r, nil
+	case GT:
+		return l > r, nil
+	case GTE:
+		return l >= r, nil
+	}
+	return false, fmt.Errorf("unknown comparison operator: %s", op)
+}
+
+func (i *Interpreter) applyComparisonOp(op TokenType, left, right any, pos *Position) (any, error) {
+	leftVal, rightVal, err := i.coerceValues(left, right, pos)
+	if err != nil {
+		return nil, err
+	}
+
+	switch l := leftVal.(type) {
+	case int64:
+		r := rightVal.(int64)
+		return defaultComparisonOp(op, l, r)
+	case uint64:
+		r := rightVal.(uint64)
+		return defaultComparisonOp(op, l, r)
+	case float64:
+		r := rightVal.(float64)
+		return defaultComparisonOp(op, l, r)
+	case types.UnofloatType:
+		r := rightVal.(float64)
+		fl := float64(l)
+		return defaultComparisonOp(op, fl, r)
+	case string:
+		r := rightVal.(string)
+		return defaultComparisonOp(op, l, r)
+	case bool:
+		r, ok := rightVal.(bool)
+		if !ok {
+			return nil, NewRuntimeError(pos, "cannot compare bool with %T", rightVal)
+		}
+		switch op {
+		case EQ:
+			return l == r, nil
+		case NEQ:
+			return l != r, nil
+		default:
+			return nil, NewRuntimeError(pos, "operator %s not supported for bool", op)
+		}
+	}
+
+	return nil, NewUnknownOperatorError(pos, op, left, right)
+}
+func (i *Interpreter) isTruthy(val any) bool {
+	switch v := val.(type) {
+	case bool:
+		return v
+	case int64:
+		return v != 0
+	case uint64:
+		return v != 0
+	case float64:
+		return v != 0.0
+	case types.UnofloatType:
+		return float64(v) != 0.0
+	case string:
+		return len(v) > 0
+	case nil:
+		return false
+	default:
+		return true
+	}
+}
+
+func coerceHandleRight[T int64 | uint64 | float64 | types.UnofloatType](l T, r any, pos *Position) (T, T, error) {
+	switch rv := r.(type) {
+	case int64:
+		return l, T(rv), nil
+	case uint64:
+		return l, T(rv), nil
+	case float64:
+		return l, T(rv), nil
+	case types.UnofloatType:
+		return l, T(float64(rv)), nil
+	default:
+		var zero T
+		return zero, zero, NewTypeMismatchError(pos, l, r)
+	}
+}
+
+func (i *Interpreter) coerceValues(left, right any, pos *Position) (any, any, error) {
 	switch l := left.(type) {
 	case int64:
 		// Left is Int: Coerce Right to Int (FCFS)
-		switch r := right.(type) {
-		case int64:
-			return l, r, nil
-		case uint64:
-			return l, int64(r), nil
-		case float64:
-			return l, int64(r), nil
-		default:
-			return nil, nil, i.typeMismatchError(left, right, line, col)
-		}
-
+		return coerceHandleRight(l, right, pos)
 	case uint64:
 		// Left is Uint: Coerce Right to Uint (FCFS)
-		switch r := right.(type) {
-		case uint64:
-			return l, r, nil
-		case int64:
-			return l, uint64(r), nil
-		case float64:
-			return l, uint64(r), nil
-		default:
-			return nil, nil, i.typeMismatchError(left, right, line, col)
-		}
-
+		return coerceHandleRight(l, right, pos)
 	case float64:
 		// Left is Float: Coerce Right to Float (FCFS)
+		return coerceHandleRight(l, right, pos)
+	case types.UnofloatType:
+		// Left is Unofloat: Coerce Right to Float, keep left as Unofloat (FCFS)
 		switch r := right.(type) {
+		case types.UnofloatType:
+			return l, float64(r), nil
 		case float64:
 			return l, r, nil
 		case int64:
@@ -389,24 +518,26 @@ func (i *Interpreter) coerceValues(left, right any, line, col int) (any, any, er
 		case uint64:
 			return l, float64(r), nil
 		default:
-			return nil, nil, i.typeMismatchError(left, right, line, col)
+			return nil, nil, i.typeMismatchError(left, right, pos)
 		}
 
 	case string:
 		if r, ok := right.(string); ok {
 			return l, r, nil
 		}
-		return nil, nil, i.typeMismatchError(left, right, line, col)
+		return nil, nil, i.typeMismatchError(left, right, pos)
 
 	case bool:
-		// Bool does not support arithmetic/concatenation with other types
-		return nil, nil, i.typeMismatchError(left, right, line, col)
+		if r, ok := right.(bool); ok {
+			return l, r, nil
+		}
+		return nil, nil, i.typeMismatchError(left, right, pos)
 	}
-	return nil, nil, NewRuntimeError(line, col, "unsupported left operand type: %T", left)
+	return nil, nil, NewRuntimeError(pos, "unsupported left operand type: %T", left)
 }
 
-func (i *Interpreter) typeMismatchError(left, right any, line, col int) error {
-	return NewTypeMismatchError(line, col, left, right)
+func (i *Interpreter) typeMismatchError(left, right any, pos *Position) error {
+	return NewTypeMismatchError(pos, left, right)
 }
 
 func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
@@ -424,6 +555,8 @@ func (i *Interpreter) evalUnaryExpr(node *UnaryExpr) (any, error) {
 			return 0 - val, nil
 		case float64:
 			return -val, nil
+		case types.UnofloatType:
+			return -float64(val), nil
 		}
 	case "!":
 		if val, ok := right.(bool); ok {
@@ -456,4 +589,74 @@ func (i *Interpreter) evalCallExpr(node *CallExpr) (any, error) {
 	}
 
 	return nil, NewFunctionNotFoundError(node, ident.Value)
+}
+
+func (i *Interpreter) evalBlockStmt(block *BlockStmt) (any, error) {
+	var result any
+	for _, statement := range block.Statements {
+		val, err := i.Evaluate(statement)
+		if err != nil {
+			return nil, err
+		}
+		result = val
+	}
+	return result, nil
+}
+
+func (i *Interpreter) evalIfStmt(node *IfStmt) (any, error) {
+	var condition bool
+	pos := &Position{Line: node.Token.Line, Column: node.Token.Column}
+	if node.Token.Type == IFRAND {
+		// ifrand statement
+		if node.Condition != nil {
+			// ifrand(probability)
+			probVal, err := i.Evaluate(node.Condition)
+			if err != nil {
+				return nil, err
+			}
+
+			var probability float64
+			switch p := probVal.(type) {
+			case float64:
+				probability = p
+			case int64:
+				probability = float64(p)
+			case uint64:
+				probability = float64(p)
+			case types.UnofloatType:
+				probability = float64(p)
+			default:
+				return nil, NewRuntimeError(pos, "ifrand probability must be a number, got %T", probVal)
+			}
+
+			if probability < UnofloatMin || probability > UnofloatMax {
+				return nil, NewRuntimeError(pos, "ifrand probability must be between 0 and 1, got %f", probability)
+			}
+
+			condition = i.Rand.Float64() < probability
+		} else {
+			// ifrand without probability (default 0.5)
+			condition = i.Rand.Float64() < DefaultIfrandProbability
+		}
+	} else {
+		// Regular if statement
+		condVal, err := i.Evaluate(node.Condition)
+		if err != nil {
+			return nil, err
+		}
+
+		boolCond, ok := condVal.(bool)
+		if !ok {
+			return nil, NewRuntimeError(pos, "if condition must evaluate to bool, got %T", condVal)
+		}
+		condition = boolCond
+	}
+
+	if condition {
+		return i.Evaluate(node.Consequence)
+	} else if node.Alternative != nil {
+		return i.Evaluate(node.Alternative)
+	}
+
+	return nil, nil
 }
